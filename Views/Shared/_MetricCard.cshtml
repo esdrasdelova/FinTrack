@@ -1,0 +1,26 @@
+@model MetricCardViewModel
+<div class="card metric-card fade-up">
+    <div class="card-body">
+        <div class="metric-top">
+            <div>
+                <div class="metric-label">@Model.Label</div>
+                <div class="metric-value">@Model.Value</div>
+                @if (!string.IsNullOrEmpty(Model.TrendText))
+                {
+                    var trendClass = Model.TrendDirection == "up" ? "trend-up" : Model.TrendDirection == "down" ? "trend-down" : "trend-neutral";
+                    var trendIcon = Model.TrendDirection == "up" ? "bi-arrow-up-right" : Model.TrendDirection == "down" ? "bi-arrow-down-right" : "bi-dash";
+                    <div class="metric-trend @trendClass"><i class="bi @trendIcon"></i> @Model.TrendText</div>
+                }
+                @if (!string.IsNullOrEmpty(Model.Footer))
+                {
+                    <div class="metric-foot">@Model.Footer</div>
+                }
+            </div>
+            <div class="metric-icon bg-@(Model.Tone)-soft"><i class="bi @Model.Icon"></i></div>
+        </div>
+        @if (!string.IsNullOrEmpty(Model.ActionUrl))
+        {
+            <a href="@Model.ActionUrl" class="stretched-link" aria-label="@Model.Label"></a>
+        }
+    </div>
+</div>

@@ -1,0 +1,60 @@
+@model InvestmentTransactionFormViewModel
+<div class="modal-header">
+    <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Nova movimentação — @Model.InvestmentName</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="txForm" asp-action="AddTransaction" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="InvestmentId" type="hidden" />
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="Type" class="form-label">Tipo de movimentação</label>
+                <select asp-for="Type" class="form-select" id="investmentTxType" asp-items="@(new SelectList(Enum.GetValues<InvestmentTransactionType>().Select(t => new SelectOption { Value = t.ToString(), Text = t switch { InvestmentTransactionType.Buy => "Compra", InvestmentTransactionType.Sell => "Venda", InvestmentTransactionType.Dividend => "Provento / dividendo", _ => "Aporte" } }), "Value", "Text"))"></select>
+            </div>
+            <div class="col-sm-6" id="qtyField">
+                <label asp-for="Quantity" class="form-label">Quantidade</label>
+                <input asp-for="Quantity" class="form-control" type="number" step="any" />
+                <span asp-validation-for="Quantity" class="text-danger"></span>
+            </div>
+            <div class="col-sm-6" id="priceField">
+                <label asp-for="Price" class="form-label">Preço unitário (R$)</label>
+                <input asp-for="Price" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="Price" class="text-danger"></span>
+            </div>
+            <div class="col-sm-6 d-none" id="amountField">
+                <label asp-for="Amount" class="form-label">Valor (R$)</label>
+                <input asp-for="Amount" class="form-control" type="number" step="0.01" />
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Date" class="form-label">Data</label>
+                <input asp-for="Date" class="form-control" type="date" />
+            </div>
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label">Observação (opcional)</label>
+                <input asp-for="Notes" class="form-control" placeholder="Ex.: Aporte trimestral" />
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="txForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> Registrar</button>
+</div>
+<script>
+    (function () {
+        const select = document.getElementById('investmentTxType');
+        const qty = document.getElementById('qtyField');
+        const price = document.getElementById('priceField');
+        const amount = document.getElementById('amountField');
+        function toggle() {
+            const isDividend = ['Dividend', 'Contribution'].includes(select.value);
+            qty.classList.toggle('d-none', isDividend);
+            price.classList.toggle('d-none', isDividend);
+            amount.classList.toggle('d-none', !isDividend);
+        }
+        select.addEventListener('change', toggle);
+        toggle();
+    })();
+</script>

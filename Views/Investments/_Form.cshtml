@@ -1,0 +1,83 @@
+@model InvestmentFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+    var colors = new[] { "#06b6d4", "#10b981", "#6366f1", "#8b5cf6", "#f59e0b", "#f43f5e", "#ec4899", "#14b8a6" };
+}
+<div class="modal-header">
+    <h5 class="modal-title"><i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle")"></i> @(isEdit ? "Editar ativo" : "Novo ativo")</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="crudForm" asp-action="Save" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div class="row g-3">
+            <div class="col-sm-8">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" placeholder="Ex.: CDB Liquidez Diária" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="Category" class="form-label">Classe</label>
+                <select asp-for="Category" class="form-select" asp-items="@(new SelectList(Enum.GetValues<InvestmentCategory>().Select(c => new SelectOption { Value = c.ToString(), Text = FinTrackFormat.InvestmentName(c) }), "Value", "Text"))"></select>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Ticker" class="form-label">Ticker / código</label>
+                <input asp-for="Ticker" class="form-control" placeholder="Ex.: PETR4" />
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Institution" class="form-label">Instituição</label>
+                <input asp-for="Institution" class="form-control" placeholder="Ex.: XP Investimentos" />
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="Quantity" class="form-label">Quantidade</label>
+                <input asp-for="Quantity" class="form-control" type="number" step="any" />
+                <span asp-validation-for="Quantity" class="text-danger"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="AveragePrice" class="form-label">Preço médio (R$)</label>
+                <input asp-for="AveragePrice" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="AveragePrice" class="text-danger"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="CurrentPrice" class="form-label">Preço atual (R$)</label>
+                <input asp-for="CurrentPrice" class="form-control" type="number" step="0.01" />
+                <div class="form-text text-muted-2">Valor informado por você</div>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="PurchaseDate" class="form-label">Data da aquisição</label>
+                <input asp-for="PurchaseDate" class="form-control" type="date" />
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label">Cor</label>
+                <div class="d-flex gap-2 flex-wrap pt-1">
+                    @foreach (var color in colors)
+                    {
+                        <label class="color-choice" style="background:@color;@(Model.Color == color ? "outline:2px solid #fff;outline-offset:2px;" : "")">
+                            <input type="radio" name="Color" value="@color" @(Model.Color == color ? "checked" : "") />
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label">Observações</label>
+                <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="crudForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> @(isEdit ? "Salvar alterações" : "Cadastrar ativo")</button>
+</div>
+<style>
+    .color-choice { width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-block; }
+    .color-choice input { display:none; }
+</style>
+<script>
+    document.querySelectorAll('.color-choice input').forEach(input => input.addEventListener('change', () => {
+        document.querySelectorAll('.color-choice').forEach(el => el.style.outline = 'none');
+        input.closest('.color-choice').style.outline = '2px solid #fff';
+    }));
+</script>

@@ -1,0 +1,84 @@
+@model TransactionFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+}
+<div class="modal-header">
+    <h5 class="modal-title" id="transactionModalLabel"><i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle")"></i> @(isEdit ? "Editar transação" : "Nova transação")</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="transactionForm" asp-action="Save" method="post" enctype="multipart/form-data" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="Description" class="form-label"></label>
+                <input asp-for="Description" class="form-control" placeholder="Ex.: Salário de janeiro" autofocus />
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="col-sm-6">
+                <label asp-for="Type" class="form-label"></label>
+                <select asp-for="Type" class="form-select" asp-items="@(new SelectList(Enum.GetValues<TransactionType>().Select(t => new SelectOption { Value = t.ToString(), Text = FinTrackFormat.TypeName(t) }), "Value", "Text"))"></select>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Status" class="form-label"></label>
+                <select asp-for="Status" class="form-select" asp-items="@(new SelectList(Enum.GetValues<TransactionStatus>().Select(t => new SelectOption { Value = t.ToString(), Text = FinTrackFormat.StatusName(t) }), "Value", "Text"))"></select>
+            </div>
+
+            <div class="col-sm-6">
+                <label asp-for="Amount" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input asp-for="Amount" class="form-control" type="number" step="0.01" min="0.01" placeholder="0,00" />
+                </div>
+                <span asp-validation-for="Amount" class="text-danger"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Date" class="form-label"></label>
+                <input asp-for="Date" class="form-control" type="date" />
+                <span asp-validation-for="Date" class="text-danger"></span>
+            </div>
+
+            <div class="col-sm-6">
+                <label asp-for="CategoryId" class="form-label"></label>
+                <select asp-for="CategoryId" class="form-select" asp-items="@(new SelectList(Model.Categories, "Value", "Text"))"></select>
+                <span asp-validation-for="CategoryId" class="text-danger"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="AccountId" class="form-label"></label>
+                <select asp-for="AccountId" class="form-select" asp-items="@(new SelectList(Model.Accounts, "Value", "Text"))"></select>
+                <span asp-validation-for="AccountId" class="text-danger"></span>
+            </div>
+
+            <div class="col-12" id="cardField">
+                <label asp-for="CreditCardId" class="form-label">Cartão de crédito <span class="text-muted-2">(opcional — para despesas no cartão)</span></label>
+                <select asp-for="CreditCardId" class="form-select" asp-items="@(new SelectList(Model.Cards, "Value", "Text"))"><option value="">Nenhum</option></select>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label"></label>
+                <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Observações adicionais (opcional)"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Attachment" class="form-label">Anexo <span class="text-muted-2">(JPG, PNG, PDF ou DOC — até 5 MB)</span></label>
+                <input asp-for="Attachment" class="form-control" type="file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" />
+                @if (!string.IsNullOrEmpty(Model.ExistingAttachmentName))
+                {
+                    <div class="form-check mt-2">
+                        <input asp-for="RemoveAttachment" class="form-check-input" type="checkbox" id="removeAttachment" />
+                        <label class="form-check-label" for="removeAttachment">Remover anexo atual: <strong>@Model.ExistingAttachmentName</strong></label>
+                    </div>
+                }
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="transactionForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> @(isEdit ? "Salvar alterações" : "Cadastrar transação")</button>
+</div>

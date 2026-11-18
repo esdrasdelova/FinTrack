@@ -1,0 +1,84 @@
+@model AccountDetailsViewModel
+@{
+    ViewData["Title"] = Model.Account.Name;
+    var a = Model.Account;
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">@a.Name</h1>
+        <p class="page-subtitle">@FinTrackFormat.AccountTypeName(a.Type)@(string.IsNullOrEmpty(a.Institution) ? "" : $" · {a.Institution}")</p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+        <a asp-controller="Transactions" asp-action="Index" asp-route-AccountId="@a.Id" class="btn btn-primary"><i class="bi bi-arrow-left-right"></i> Ver transações</a>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saldo atual", Value = FinTrackFormat.Currency(a.CurrentBalance), Icon = "bi-wallet2", Tone = "accent" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saldo inicial", Value = FinTrackFormat.Currency(a.InitialBalance), Icon = "bi-bank", Tone = "info" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Entradas (extrato)", Value = FinTrackFormat.Currency(Model.Income), Icon = "bi-arrow-down-left-circle", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saídas (extrato)", Value = FinTrackFormat.Currency(Model.Expenses), Icon = "bi-arrow-up-right-circle", Tone = "danger" })
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-graph-up"></i> Movimentação mensal</h3><div class="card-subtitle">Entradas e saídas por mês</div></div></div>
+        <div class="card-body">
+            @if (a.TransactionCount > 0)
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartAccountBalance"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-graph-up", Title = "Sem movimentações" })
+            }
+        </div>
+    </div>
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-info-circle"></i> Detalhes da conta</h3></div></div>
+        <div class="card-body">
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Tipo</div><div class="list-row-title">@FinTrackFormat.AccountTypeName(a.Type)</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Instituição</div><div class="list-row-title">@(string.IsNullOrEmpty(a.Institution) ? "—" : a.Institution)</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Status</div><div class="list-row-title">@(a.IsActive ? "Ativa" : "Inativa")</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Transações</div><div class="list-row-title">@a.TransactionCount</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Variação acumulada</div><div class="list-row-title @(a.CurrentBalance >= a.InitialBalance ? "text-success" : "text-danger")">@FinTrackFormat.Currency(a.CurrentBalance - a.InitialBalance)</div></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-list-ul"></i> Últimas movimentações</h3><div class="card-subtitle">30 registros mais recentes</div></div></div>
+    <div class="card-body tight">
+        @if (Model.Movements.Any())
+        {
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Descrição</th><th>Categoria</th><th>Data</th><th class="text-end">Valor</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Model.Movements)
+                    {
+                        <tr>
+                            <td><div class="entity-cell"><div class="entity-icon" style="background:@(m.CategoryColor)22;color:@m.CategoryColor"><i class="bi bi-tag"></i></div><div class="entity-title">@m.Description</div></div></td>
+                            <td class="text-muted">@m.CategoryName</td>
+                            <td class="text-muted">@FinTrackFormat.Date(m.Date)</td>
+                            <td class="text-end @(m.Type == TransactionType.Income ? "amount-in" : "amount-out")">@FinTrackFormat.Currency(m.Amount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-inbox", Title = "Nenhuma movimentação nesta conta" })
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (a.TransactionCount > 0) { <text>FinTrackCharts.render('chartAccountBalance', @Html.Raw(Model.BalanceChartJson));</text> }
+        });
+    </script>
+}

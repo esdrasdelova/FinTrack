@@ -1,0 +1,101 @@
+﻿@inject ICurrentUserService CurrentUser
+@{
+    var theme = Context.Request.Cookies["fintrack-theme"] ?? "dark";
+    var title = ViewData["Title"]?.ToString() ?? "FinTrack";
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+    var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Dashboard"] = "Dashboard", ["Transactions"] = "Transações", ["Income"] = "Receitas",
+        ["Expenses"] = "Despesas", ["Accounts"] = "Contas e carteiras", ["Cards"] = "Cartões",
+        ["Budgets"] = "Orçamentos", ["Goals"] = "Metas financeiras", ["Investments"] = "Investimentos",
+        ["Reports"] = "Relatórios", ["Calendar"] = "Calendário financeiro", ["Notifications"] = "Notificações",
+        ["Settings"] = "Configurações", ["Home"] = "Início"
+    };
+    var sectionLabel = labels.TryGetValue(controller, out var value) ? value : controller;
+    var profile = CurrentUser.IsAuthenticated ? await CurrentUser.GetProfileAsync() : null;
+    var toastItems = new[]
+    {
+        new { Key = "Success", Type = "success", Icon = "bi-check-circle-fill" },
+        new { Key = "Error", Type = "error", Icon = "bi-x-circle-fill" },
+        new { Key = "Warning", Type = "warning", Icon = "bi-exclamation-triangle-fill" },
+        new { Key = "Info", Type = "info", Icon = "bi-info-circle-fill" }
+    };
+}
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="@theme">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="FinTrack — plataforma profissional de gestão financeira pessoal e empresarial." />
+    <title>@title · FinTrack</title>
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/fintrack.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    @Html.AntiForgeryToken()
+
+    @if (profile?.IsDemo == true)
+    {
+        <div class="demo-banner">
+            <i class="bi bi-info-circle-fill"></i>
+            <span><strong>Ambiente de demonstração.</strong> Os dados financeiros exibidos são fictícios, gerados automaticamente para apresentação. Cadastre-se para utilizar seus próprios dados.</span>
+            <a class="btn btn-sm btn-outline-secondary ms-2" asp-controller="Account" asp-action="Register">Criar minha conta</a>
+        </div>
+    }
+
+    <div class="app-shell">
+        @await Html.PartialAsync("_Sidebar")
+        <div class="main-panel">
+            @await Html.PartialAsync("_Topbar")
+            <main class="content">
+                <nav class="breadcrumb-bar" aria-label="breadcrumb">
+                    <a asp-controller="Dashboard" asp-action="Index"><i class="bi bi-house-door"></i></a>
+                    <i class="bi bi-chevron-right" style="font-size:9px"></i>
+                    <span>@sectionLabel</span>
+                    @if (action != "Index" && !string.IsNullOrEmpty(action))
+                    {
+                        <i class="bi bi-chevron-right" style="font-size:9px"></i>
+                        <span class="current">@title</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-chevron-right" style="font-size:9px"></i>
+                        <span class="current">@title</span>
+                    }
+                </nav>
+
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+    <div id="toastData" style="display:none">
+        @foreach (var item in toastItems)
+        {
+            var message = TempData[item.Key]?.ToString();
+            if (!string.IsNullOrEmpty(message))
+            {
+                <span class="toast-message" data-type="@item.Type" data-title="@(item.Type == "success" ? "Sucesso" : item.Type == "error" ? "Atenção" : item.Type == "warning" ? "Aviso" : "Informação")">@message</span>
+            }
+        }
+    </div>
+    <div id="globalLoader">
+        <div class="loader-card"><div class="spinner"></div><span>Processando...</span></div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/chart.js/chart.umd.min.js"></script>
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/fintrack.js" asp-append-version="true"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+    <script src="~/js/crud-modal.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

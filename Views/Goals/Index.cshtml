@@ -1,0 +1,106 @@
+@model GoalListViewModel
+@{
+    ViewData["Title"] = "Metas financeiras";
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Metas financeiras</h1>
+        <p class="page-subtitle">Planeje objetivos e acompanhe cada aporte até o destino final.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" data-action="new"><i class="bi bi-plus-lg"></i> Nova meta</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Valor alvo", Value = FinTrackFormat.Currency(Model.TotalTarget), Icon = "bi-bullseye", Tone = "accent", Footer = $"{Model.Items.Count} meta(s)" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total acumulado", Value = FinTrackFormat.Currency(Model.TotalCurrent), Icon = "bi-piggy-bank", Tone = "success", Footer = Model.TotalTarget > 0 ? $"{FinTrackFormat.Percent(Model.TotalCurrent / Model.TotalTarget * 100)} do planejado" : "" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Ainda falta", Value = FinTrackFormat.Currency(Model.TotalTarget - Model.TotalCurrent), Icon = "bi-hourglass-split", Tone = "warning" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Metas concluídas", Value = Model.CompletedCount.ToString(), Icon = "bi-trophy", Tone = "info", Footer = "Objetivos alcançados" })
+</div>
+
+@if (Model.Items.Any())
+{
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Progresso das metas</h3><div class="card-subtitle">Percentual concluído de cada objetivo</div></div></div>
+        <div class="card-body"><div class="chart-box sm"><div class="chart-skeleton"></div><canvas id="chartGoals"></canvas></div></div>
+    </div>
+}
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-stars"></i> Minhas metas</h3><div class="card-subtitle">Acompanhe o progresso e registre aportes</div></div></div>
+    <div class="card-body">
+        @if (Model.Items.Any())
+        {
+            <div class="row g-3">
+                @foreach (var g in Model.Items)
+                {
+                    var tone = g.IsCompleted ? "success" : g.DaysRemaining < 0 ? "danger" : "accent";
+                    <div class="col-xl-4 col-lg-6">
+                        <div class="card mb-0 h-100" style="border-left:3px solid @g.Color">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="entity-icon" style="background:@(g.Color)22;color:@g.Color;font-size:19px;width:44px;height:44px"><i class="bi @g.Icon"></i></div>
+                                        <div>
+                                            <div class="entity-title">@g.Name</div>
+                                            <div class="entity-sub">@(g.IsCompleted ? "Concluída" : g.DaysRemaining < 0 ? $"{Math.Abs(g.DaysRemaining)}d em atraso" : $"{g.DaysRemaining}d restantes")</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="icon-button" type="button" data-bs-toggle="dropdown" style="width:30px;height:30px"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" asp-action="Details" asp-route-id="@g.Id"><i class="bi bi-eye"></i> Detalhes</a></li>
+                                            <li><button type="button" class="dropdown-item" data-action="edit" data-id="@g.Id"><i class="bi bi-pencil"></i> Editar</button></li>
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li><button type="button" class="dropdown-item text-danger" data-action="delete" data-id="@g.Id" data-confirm="Excluir a meta &quot;@g.Name&quot;?"><i class="bi bi-trash3"></i> Excluir</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="d-flex justify-content-between align-items-end mb-2">
+                                    <div>
+                                        <div class="metric-label">Acumulado</div>
+                                        <div class="metric-value mb-0" style="font-size:20px;color:var(--@tone)">@FinTrackFormat.Currency(g.Current)</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="metric-label">Alvo</div>
+                                        <div style="font-weight:650">@FinTrackFormat.Currency(g.Target)</div>
+                                    </div>
+                                </div>
+                                <div class="progress" style="height:10px"><div class="progress-bar bg-@tone" style="width:@g.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+                                <div class="d-flex justify-content-between mt-2" style="font-size:11px">
+                                    <span class="text-muted">@FinTrackFormat.Percent(g.Percent) · @g.ContributionCount aporte(s)</span>
+                                    <a asp-action="Details" asp-route-id="@g.Id" class="text-accent">Ver detalhes <i class="bi bi-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-stars"></i></div>
+                <h6>Nenhuma meta definida</h6>
+                <p>Crie sua primeira meta financeira e comece a acumular aportes.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new"><i class="bi bi-plus-lg"></i> Nova meta</button>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            FinTrackCrud.setup({
+                formUrl: '@Url.Action("Form")', saveUrl: '@Url.Action("Save")', deleteUrl: '@Url.Action("Delete")'
+            });
+            @if (Model.Items.Any()) { <text>FinTrackCharts.render('chartGoals', @Html.Raw(Model.ChartJson));</text> }
+        });
+    </script>
+}

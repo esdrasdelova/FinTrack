@@ -1,0 +1,173 @@
+@model CardListViewModel
+@{
+    ViewData["Title"] = "Cartões";
+    var anyCard = Model.Cards.Any();
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Cartões de crédito</h1>
+        <p class="page-subtitle">Acompanhe limites, utilização e faturas em aberto.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" data-action="new"><i class="bi bi-plus-lg"></i> Novo cartão</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Limite total", Value = FinTrackFormat.Currency(Model.TotalLimit), Icon = "bi-credit-card-2-front", Tone = "accent" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Utilizado no mês", Value = FinTrackFormat.Currency(Model.TotalUsed), Icon = "bi-arrow-up-right-circle", Tone = "danger", Footer = Model.TotalLimit > 0 ? $"{FinTrackFormat.Percent(Model.TotalUsed / Model.TotalLimit * 100)} do limite" : "" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Limite disponível", Value = FinTrackFormat.Currency(Model.TotalLimit - Model.TotalUsed), Icon = "bi-wallet2", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Faturas em aberto", Value = FinTrackFormat.Currency(Model.TotalInvoices), Icon = "bi-receipt", Tone = "warning", Footer = $"{Model.Invoices.Count} fatura(s) pendente(s)" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-credit-card-2-front"></i> Meus cartões</h3><div class="card-subtitle">Cartões cadastrados e utilização do ciclo atual</div></div></div>
+    <div class="card-body">
+        @if (anyCard)
+        {
+            <div class="row g-3">
+                @foreach (var c in Model.Cards)
+                {
+                    <div class="col-xl-4 col-lg-6">
+                        <div class="credit-card mb-3" style="--card-color:@c.Color">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="chip"></div>
+                                <i class="bi @(string.IsNullOrEmpty(c.Brand) ? "bi-credit-card" : c.Brand.Contains("Visa", StringComparison.OrdinalIgnoreCase) ? "bi-credit-card-2-front" : "bi-credit-card")" style="font-size:26px;opacity:.85"></i>
+                            </div>
+                            <div>
+                                <div class="card-number">•••• •••• •••• @c.LastFourDigits</div>
+                                <div class="d-flex justify-content-between align-items-end mt-3">
+                                    <div>
+                                        <div class="card-label">Titular</div>
+                                        <div class="card-value">@c.Name</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="card-label">Vence dia</div>
+                                        <div class="card-value">@c.DueDay</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card mb-0">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong style="font-size:13px">@c.Name</strong>
+                                        <span class="badge-soft @(c.IsActive ? "badge-success" : "badge-muted") ms-1">@(c.IsActive ? "Ativo" : "Inativo")</span>
+                                        <div class="entity-sub">@(string.IsNullOrEmpty(c.Institution) ? "—" : c.Institution) · Fecha dia @c.ClosingDay</div>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="icon-button" type="button" data-bs-toggle="dropdown" style="width:30px;height:30px"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><button type="button" class="dropdown-item" data-action="edit" data-id="@c.Id"><i class="bi bi-pencil"></i> Editar</button></li>
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li><button type="button" class="dropdown-item text-danger" data-action="delete" data-id="@c.Id" data-confirm="Excluir o cartão &quot;@c.Name&quot;?"><i class="bi bi-trash3"></i> Excluir</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between" style="font-size:11px;color:var(--muted)">
+                                    <span>Utilizado <strong style="color:var(--danger)">@FinTrackFormat.Currency(c.Used)</strong></span>
+                                    <span>Disponível <strong style="color:var(--success)">@FinTrackFormat.Currency(c.Available)</strong></span>
+                                </div>
+                                <div class="progress mt-2"><div class="progress-bar @(c.UsagePercent >= 80 ? "bg-danger" : "bg-primary")" style="width:@c.UsagePercent.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+                                <div class="mt-1 text-end" style="font-size:10px;color:var(--muted-2)">@FinTrackFormat.Percent(c.UsagePercent) do limite de @FinTrackFormat.Currency(c.CreditLimit)</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-credit-card-2-front"></i></div>
+                <h6>Nenhum cartão cadastrado</h6>
+                <p>Cadastre um cartão para controlar limites e faturas.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new"><i class="bi bi-plus-lg"></i> Novo cartão</button>
+            </div>
+        }
+    </div>
+</div>
+
+@if (anyCard && Model.Cards.Count(c => c.IsActive) > 1)
+{
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-bar-chart-steps"></i> Compare os cartões</h3><div class="card-subtitle">Utilizado × disponível por cartão</div></div></div>
+        <div class="card-body"><div class="chart-box sm"><div class="chart-skeleton"></div><canvas id="chartCardUsage"></canvas></div></div>
+    </div>
+}
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-receipt"></i> Faturas em aberto</h3><div class="card-subtitle">Próximos vencimentos e saldos devedores</div></div></div>
+    <div class="card-body tight">
+        @if (Model.Invoices.Any())
+        {
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Cartão</th><th>Referência</th><th>Vencimento</th><th>Status</th><th class="text-end">Total</th><th class="text-end">Em aberto</th><th style="width:110px"></th></tr></thead>
+                <tbody>
+                    @foreach (var i in Model.Invoices)
+                    {
+                        var tone = i.DaysToDue < 0 ? "danger" : i.DaysToDue <= 7 ? "warning" : "accent";
+                        <tr>
+                            <td><div class="entity-cell"><div class="entity-icon" style="background:@(i.CardColor)22;color:@i.CardColor"><i class="bi bi-credit-card"></i></div><div class="entity-title">@i.CardName</div></div></td>
+                            <td class="text-muted">@i.Reference</td>
+                            <td>
+                                <span class="badge-soft badge-@tone">@FinTrackFormat.Date(i.DueDate)</span>
+                                <div class="entity-sub">@(i.DaysToDue < 0 ? $"{Math.Abs(i.DaysToDue)}d em atraso" : i.DaysToDue == 0 ? "vence hoje" : $"em {i.DaysToDue}d")</div>
+                            </td>
+                            <td><span class="badge-soft badge-@(i.Status == InvoiceStatus.Overdue ? "danger" : "warning")">@(i.Status == InvoiceStatus.Overdue ? "Atrasada" : i.Status == InvoiceStatus.Closed ? "Fechada" : "Aberta")</span></td>
+                            <td class="text-end">@FinTrackFormat.Currency(i.TotalAmount)</td>
+                            <td class="text-end amount-out">@FinTrackFormat.Currency(i.Remaining)</td>
+                            <td><button type="button" class="btn btn-sm btn-light btn-icon" title="Pagar fatura" data-action="pay-invoice" data-id="@i.Id"><i class="bi bi-cash-coin"></i></button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-check-circle", Title = "Nenhuma fatura em aberto", Message = "Tudo em dia! Suas faturas aparecerão aqui quando houver gastos." })
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+<div class="modal fade" id="payModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content" id="payFormContainer"></div></div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            FinTrackCrud.setup({
+                formUrl: '@Url.Action("Form")', saveUrl: '@Url.Action("Save")', deleteUrl: '@Url.Action("Delete")'
+            });
+            @if (anyCard && Model.Cards.Count(c => c.IsActive) > 1)
+            {
+                <text>FinTrackCharts.render('chartCardUsage', @Html.Raw(Model.UsageChartJson));</text>
+            }
+
+            const payModal = new bootstrap.Modal(document.getElementById('payModal'));
+            const payContainer = document.getElementById('payFormContainer');
+            document.querySelectorAll('[data-action="pay-invoice"]').forEach(el => el.addEventListener('click', () => {
+                payContainer.innerHTML = '<div class="modal-body text-center py-4"><div class="spinner mx-auto"></div></div>';
+                payModal.show();
+                fetch('@Url.Action("PayForm")?id=' + el.dataset.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.text()).then(html => {
+                        payContainer.innerHTML = html;
+                        const form = payContainer.querySelector('#payForm');
+                        form?.addEventListener('submit', async e => {
+                            e.preventDefault();
+                            FinTrack.loader(true);
+                            const res = await fetch('@Url.Action("PayInvoice")', { method: 'POST', body: new FormData(form) });
+                            const result = await res.json();
+                            FinTrack.loader(false);
+                            if (result.success) { payModal.hide(); FinTrack.showToast(result.message, 'success'); setTimeout(() => location.reload(), 600); }
+                            else { payContainer.querySelector('#formErrors').innerHTML = `<div class="alert alert-danger py-2 small">${result.message}</div>`; }
+                        });
+                    });
+            }));
+        });
+    </script>
+}

@@ -1,0 +1,22 @@
+@model PeriodBarViewModel
+@{
+    var custom = Model.Period.Preset == PeriodPreset.Custom;
+}
+<form id="periodForm" method="get" asp-controller="@Model.Controller" asp-action="@Model.Action" class="d-flex flex-column gap-2 align-items-end">
+    <input type="hidden" name="preset" value="@Model.Period.Preset" />
+    @foreach (var field in Model.HiddenFields)
+    {
+        <input type="hidden" name="@field.Key" value="@field.Value" />
+    }
+    <div class="period-tabs">
+        @foreach (var option in Model.Options)
+        {
+            <button type="button" class="period-tab @(option.Selected ? "active" : "")" data-preset="@option.Value">@option.Text</button>
+        }
+    </div>
+    <div id="customDates" class="d-flex gap-2 align-items-end @(custom ? "" : "d-none")">
+        <input type="date" name="from" id="customFrom" class="form-control form-control-sm" value="@Model.From?.ToString("yyyy-MM-dd")" />
+        <input type="date" name="to" class="form-control form-control-sm" value="@Model.To?.ToString("yyyy-MM-dd")" />
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg"></i> Aplicar</button>
+    </div>
+</form>

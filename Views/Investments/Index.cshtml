@@ -1,0 +1,106 @@
+@model InvestmentListViewModel
+@{
+    ViewData["Title"] = "Investimentos";
+    var any = Model.Items.Any();
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Investimentos</h1>
+        <p class="page-subtitle">Acompanhe sua carteira, rentabilidade e movimentações. Preços informados manualmente — sem cotações automáticas.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" data-action="new"><i class="bi bi-plus-lg"></i> Novo ativo</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Patrimônio investido", Value = FinTrackFormat.Currency(Model.TotalCurrent), Icon = "bi-graph-up-arrow", Tone = "accent", Footer = $"{Model.Items.Count} ativo(s)" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total aportado", Value = FinTrackFormat.Currency(Model.TotalInvested), Icon = "bi-piggy-bank", Tone = "info" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Resultado", Value = FinTrackFormat.Currency(Model.TotalProfit), Icon = "bi-currency-exchange", Tone = Model.TotalProfit >= 0 ? "success" : "danger", TrendText = Model.TotalInvested > 0 ? $"{FinTrackFormat.Percent(Model.TotalProfit / Model.TotalInvested * 100)} sobre o aportado" : null, TrendDirection = Model.TotalProfit >= 0 ? "up" : "down" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Dividendos recebidos", Value = FinTrackFormat.Currency(Model.TotalDividends), Icon = "bi-cash-coin", Tone = "warning", Footer = "Somatório de proventos registrados" })
+</div>
+
+@if (any)
+{
+    <div class="grid-main-side">
+        <div class="card fade-up">
+            <div class="card-header"><div><h3 class="card-title"><i class="bi bi-pie-chart-fill"></i> Distribuição da carteira</h3><div class="card-subtitle">Participação por classe de ativo</div></div></div>
+            <div class="card-body"><div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartInvestmentCategories"></canvas></div></div>
+        </div>
+        <div class="card fade-up">
+            <div class="card-header"><div><h3 class="card-title"><i class="bi bi-graph-up"></i> Movimentações</h3><div class="card-subtitle">Entradas e saídas por mês</div></div></div>
+            <div class="card-body"><div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartInvestmentEvolution"></canvas></div></div>
+        </div>
+    </div>
+}
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-briefcase"></i> Minha carteira</h3><div class="card-subtitle">Posição consolidada dos ativos cadastrados</div></div></div>
+    <div class="card-body tight">
+        @if (any)
+        {
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Ativo</th><th>Classe</th><th>Quant.</th><th>Preço médio</th><th>Preço atual</th><th class="text-end">Investido</th><th class="text-end">Valor atual</th><th class="text-end">Resultado</th><th style="width:110px"></th></tr></thead>
+                <tbody>
+                    @foreach (var i in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="entity-cell">
+                                    <div class="entity-icon" style="background:@(i.Color)22;color:@i.Color"><i class="bi bi-graph-up-arrow"></i></div>
+                                    <div><div class="entity-title">@i.Name</div><div class="entity-sub">@(string.IsNullOrEmpty(i.Ticker) ? i.Institution : i.Ticker + (string.IsNullOrEmpty(i.Institution) ? "" : " · " + i.Institution))</div></div>
+                                </div>
+                            </td>
+                            <td><span class="badge-soft badge-accent">@FinTrackFormat.InvestmentName(i.Category)</span></td>
+                            <td class="text-muted">@i.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                            <td class="text-muted">@FinTrackFormat.Currency(i.AveragePrice)</td>
+                            <td class="text-muted">@FinTrackFormat.Currency(i.CurrentPrice)</td>
+                            <td class="text-end">@FinTrackFormat.Currency(i.Invested)</td>
+                            <td class="text-end">@FinTrackFormat.Currency(i.CurrentValue)</td>
+                            <td class="text-end @(i.Profit >= 0 ? "amount-in" : "amount-out")">
+                                @(i.Profit >= 0 ? "+" : "−") @FinTrackFormat.Currency(Math.Abs(i.Profit))
+                                <div class="entity-sub">@FinTrackFormat.Percent(i.ProfitPercentage)</div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a asp-action="Details" asp-route-id="@i.Id" class="btn btn-sm btn-light btn-icon" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button type="button" class="btn btn-sm btn-light btn-icon" title="Editar" data-action="edit" data-id="@i.Id"><i class="bi bi-pencil"></i></button>
+                                    <button type="button" class="btn btn-sm btn-light btn-icon text-danger" title="Excluir" data-action="delete" data-id="@i.Id" data-confirm="Excluir o ativo &quot;@i.Name&quot;?"><i class="bi bi-trash3"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-briefcase"></i></div>
+                <h6>Nenhum ativo cadastrado</h6>
+                <p>Adicione ativos para acompanhar sua carteira e registrá-los manualmente.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new"><i class="bi bi-plus-lg"></i> Novo ativo</button>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            FinTrackCrud.setup({
+                formUrl: '@Url.Action("Form")', saveUrl: '@Url.Action("Save")', deleteUrl: '@Url.Action("Delete")'
+            });
+            @if (any)
+            {
+                <text>
+                FinTrackCharts.render('chartInvestmentCategories', @Html.Raw(Model.CategoryChartJson));
+                FinTrackCharts.render('chartInvestmentEvolution', @Html.Raw(Model.EvolutionChartJson));
+                </text>
+            }
+        });
+    </script>
+}

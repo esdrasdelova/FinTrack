@@ -1,0 +1,33 @@
+@model PayInvoiceViewModel
+<div class="modal-header">
+    <h5 class="modal-title"><i class="bi bi-cash-coin"></i> Pagar fatura</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="payForm" asp-action="PayInvoice" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="InvoiceId" type="hidden" />
+        <div class="mb-3">
+            <label asp-for="Amount" class="form-label">Valor do pagamento (R$)</label>
+            <input asp-for="Amount" class="form-control" type="number" step="0.01" />
+            <span asp-validation-for="Amount" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="AccountId" class="form-label">Debitar da conta</label>
+            <select asp-for="AccountId" class="form-select" asp-items="@(new SelectList(Model.Accounts, "Value", "Text"))"><option value="">Selecione...</option></select>
+            <span asp-validation-for="AccountId" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Date" class="form-label">Data do pagamento</label>
+            <input asp-for="Date" class="form-control" type="date" />
+        </div>
+        <div class="alert alert-info py-2 small" style="background:var(--info-soft);border-color:var(--border);color:var(--text)">
+            <i class="bi bi-info-circle"></i> O pagamento gera automaticamente uma despesa na conta selecionada e atualiza o saldo da fatura.
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="payForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar pagamento</button>
+</div>

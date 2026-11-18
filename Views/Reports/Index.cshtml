@@ -1,0 +1,99 @@
+@model ReportViewModel
+@{
+    ViewData["Title"] = "Relatórios";
+    var d = Model.Data;
+    var hasChart = d.Labels.Any() && d.Series.Any(s => s.Data.Any(v => v != 0));
+    var exportQuery = $"kind={Model.Kind}&preset={Model.Period.Preset}&from={Model.From?.ToString("yyyy-MM-dd")}&to={Model.To?.ToString("yyyy-MM-dd")}";
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Relatórios</h1>
+        <p class="page-subtitle">Análises consolidadas do período <strong>@Model.Period.Label</strong>.</p>
+    </div>
+    <div class="page-actions">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="bi bi-download"></i> Exportar</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="@Url.Action("Export")?@exportQuery&format=csv"><i class="bi bi-filetype-csv"></i> CSV</a></li>
+                <li><a class="dropdown-item" href="@Url.Action("Export")?@exportQuery&format=pdf"><i class="bi bi-filetype-pdf"></i> PDF</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card fade-up">
+    <div class="card-body d-flex flex-column flex-lg-row gap-3 align-items-lg-end justify-content-between">
+        <form method="get" asp-action="Index" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label mb-1" for="reportKind">Tipo de relatório</label>
+                <select id="reportKind" name="kind" class="form-select" onchange="this.form.submit()" asp-items="@(new SelectList(Model.ReportOptions, "Value", "Text", Model.Kind.ToString()))"></select>
+            </div>
+            <input type="hidden" name="preset" value="@Model.Period.Preset" />
+            @if (Model.From.HasValue) { <input type="hidden" name="from" value="@Model.From.Value.ToString("yyyy-MM-dd")" /> }
+            @if (Model.To.HasValue) { <input type="hidden" name="to" value="@Model.To.Value.ToString("yyyy-MM-dd")" /> }
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Gerar</button>
+        </form>
+        @await Html.PartialAsync("_PeriodBar", new PeriodBarViewModel
+        {
+            Period = Model.Period, Options = Model.PeriodOptions, From = Model.From, To = Model.To,
+            Controller = "Reports", HiddenFields = new Dictionary<string, string> { ["kind"] = Model.Kind.ToString() }
+        })
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Indicador principal", Value = FinTrackFormat.Currency(d.Total), Icon = "bi-calculator", Tone = "accent", Footer = d.Title })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Períodos analisados", Value = d.Labels.Count.ToString(), Icon = "bi-calendar-range", Tone = "info" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Séries", Value = d.Series.Count.ToString(), Icon = "bi-layers", Tone = "warning" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Registros detalhados", Value = d.Details.Count.ToString(), Icon = "bi-list-ul", Tone = "success", Footer = "Disponíveis na exportação" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header">
+        <div><h3 class="card-title"><i class="bi bi-graph-up"></i> @d.Title</h3><div class="card-subtitle">Período: @Model.Period.Label</div></div>
+    </div>
+    <div class="card-body">
+        @if (hasChart)
+        {
+            <div class="chart-box lg"><div class="chart-skeleton"></div><canvas id="chartReport"></canvas></div>
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-bar-chart", Title = "Sem dados para este relatório", Message = "Ajuste o período ou cadastre lançamentos para gerar o relatório." })
+        }
+    </div>
+</div>
+
+@if (d.Details.Any())
+{
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-list-ul"></i> Detalhamento</h3><div class="card-subtitle">Lançamentos considerados no período</div></div></div>
+        <div class="card-body tight">
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Status</th><th class="text-end">Valor</th></tr></thead>
+                <tbody>
+                    @foreach (var t in d.Details.Take(50))
+                    {
+                        <tr>
+                            <td class="text-muted">@FinTrackFormat.Date(t.Date)</td>
+                            <td>@t.Description</td>
+                            <td class="text-muted">@t.CategoryName</td>
+                            <td class="text-muted">@t.AccountName</td>
+                            <td><span class="badge-soft badge-@FinTrackFormat.StatusTone(t.Status)">@FinTrackFormat.StatusName(t.Status)</span></td>
+                            <td class="text-end @(t.Type == TransactionType.Income ? "amount-in" : "amount-out")">@FinTrackFormat.Currency(t.Amount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (hasChart) { <text>FinTrackCharts.render('chartReport', @Html.Raw(Model.ChartJson));</text> }
+        });
+    </script>
+}

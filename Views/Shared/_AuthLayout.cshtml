@@ -1,0 +1,77 @@
+@{
+    var theme = Context.Request.Cookies["fintrack-theme"] ?? "dark";
+    var title = ViewData["Title"]?.ToString() ?? "FinTrack";
+    var toastItems = new[]
+    {
+        new { Key = "Success", Type = "success" },
+        new { Key = "Error", Type = "error" },
+        new { Key = "Warning", Type = "warning" },
+        new { Key = "Info", Type = "info" }
+    };
+}
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="@theme">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title · FinTrack</title>
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/fintrack.css" asp-append-version="true" />
+</head>
+<body>
+    @Html.AntiForgeryToken()
+    <div class="auth-page">
+        <section class="auth-visual">
+            <div class="d-flex align-items-center gap-3" style="position:relative;z-index:1">
+                <div class="brand-mark">F</div>
+                <div>
+                    <div class="brand-name">Fin<span style="color:#a5b4fc">Track</span></div>
+                    <div class="brand-sub" style="color:rgba(226,232,240,.5)">Financial Suite</div>
+                </div>
+            </div>
+
+            <div class="auth-hero">
+                <h1>Sua vida financeira,<br /><span style="color:#a5b4fc">sob controle total.</span></h1>
+                <p>Uma plataforma completa para transformar números em decisões inteligentes. Receitas, despesas, metas, investimentos e relatórios em um só lugar.</p>
+                <div class="d-flex flex-column gap-3 mt-4">
+                    <div class="auth-feature"><i class="bi bi-lightning-charge"></i><span>Indicadores em tempo real e gráficos interativos</span></div>
+                    <div class="auth-feature"><i class="bi bi-shield-lock"></i><span>Seus dados isolados e protegidos por autenticação</span></div>
+                    <div class="auth-feature"><i class="bi bi-phone"></i><span>Interface responsiva para desktop, tablet e celular</span></div>
+                </div>
+            </div>
+
+            <div style="position:relative;z-index:1;color:rgba(226,232,240,.45);font-size:11px">
+                © @DateTime.Today.Year FinTrack. Gestão financeira profissional.
+            </div>
+        </section>
+
+        <section class="auth-panel">
+            <div>
+                @RenderBody()
+            </div>
+        </section>
+    </div>
+
+    <div id="toastContainer"></div>
+    <div id="toastData" style="display:none">
+        @foreach (var item in toastItems)
+        {
+            var message = TempData[item.Key]?.ToString();
+            if (!string.IsNullOrEmpty(message))
+            {
+                <span class="toast-message" data-type="@item.Type" data-title="@(item.Type == "success" ? "Sucesso" : "Atenção")">@message</span>
+            }
+        }
+    </div>
+    <div id="globalLoader"><div class="loader-card"><div class="spinner"></div><span>Processando...</span></div></div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/fintrack.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

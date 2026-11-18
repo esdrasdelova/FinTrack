@@ -1,0 +1,8 @@
+@{ var modalId = ViewData["ModalId"]?.ToString() ?? "crudModal"; }
+<div class="modal fade" id="@modalId" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" id="@(ViewData["ContainerId"]?.ToString() ?? "crudFormContainer")">
+            <div class="modal-body text-center py-5"><div class="spinner mx-auto"></div><p class="text-muted mt-3">Carregando...</p></div>
+        </div>
+    </div>
+</div>

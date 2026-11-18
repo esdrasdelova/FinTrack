@@ -1,0 +1,306 @@
+@model TransactionListViewModel
+@{
+    ViewData["Title"] = "Transações";
+    var f = Model.Filter;
+    string SortHeader(string key, string label) => $"<a class='sort-link' href='?{QueryString(key)}'>{label} <i class='bi bi-arrow-down-up' style='font-size:10px'></i></a>";
+    string QueryString(string sortBy)
+    {
+        var nextDir = f.SortBy == sortBy && f.SortDir == "asc" ? "desc" : "asc";
+        var values = new Dictionary<string, string?>
+        {
+            ["Search"] = f.Search, ["CategoryId"] = f.CategoryId?.ToString(), ["AccountId"] = f.AccountId?.ToString(),
+            ["From"] = f.From?.ToString("yyyy-MM-dd"), ["To"] = f.To?.ToString("yyyy-MM-dd"),
+            ["MinAmount"] = f.MinAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["MaxAmount"] = f.MaxAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Type"] = f.Type?.ToString(), ["Status"] = f.Status?.ToString(),
+            ["SortBy"] = sortBy, ["SortDir"] = nextDir, ["PageSize"] = f.PageSize.ToString()
+        };
+        return string.Join('&', values.Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => $"{x.Key}={Uri.EscapeDataString(x.Value!)}"));
+    }
+    string PageUrl(int page)
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Search"] = f.Search, ["CategoryId"] = f.CategoryId?.ToString(), ["AccountId"] = f.AccountId?.ToString(),
+            ["From"] = f.From?.ToString("yyyy-MM-dd"), ["To"] = f.To?.ToString("yyyy-MM-dd"),
+            ["MinAmount"] = f.MinAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["MaxAmount"] = f.MaxAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Type"] = f.Type?.ToString(), ["Status"] = f.Status?.ToString(),
+            ["SortBy"] = f.SortBy, ["SortDir"] = f.SortDir, ["PageSize"] = f.PageSize.ToString(), ["Page"] = page.ToString()
+        };
+        return "?" + string.Join('&', values.Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => $"{x.Key}={Uri.EscapeDataString(x.Value!)}"));
+    }
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Transações</h1>
+        <p class="page-subtitle">Gerencie todas as entradas e saídas do seu fluxo financeiro.</p>
+    </div>
+    <div class="page-actions">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="@Url.Action("Export", new { format = "excel", Search = f.Search, CategoryId = f.CategoryId, AccountId = f.AccountId, From = f.From, To = f.To, MinAmount = f.MinAmount, MaxAmount = f.MaxAmount, Type = f.Type, Status = f.Status })"><i class="bi bi-file-earmark-excel"></i> Excel (.xlsx)</a></li>
+                <li><a class="dropdown-item" href="@Url.Action("Export", new { format = "csv", Search = f.Search, CategoryId = f.CategoryId, AccountId = f.AccountId, From = f.From, To = f.To, MinAmount = f.MinAmount, MaxAmount = f.MaxAmount, Type = f.Type, Status = f.Status })"><i class="bi bi-filetype-csv"></i> CSV (.csv)</a></li>
+            </ul>
+        </div>
+        <a asp-controller="Transactions" asp-action="Index" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-arrow-counterclockwise"></i> Limpar</a>
+        <button type="button" class="btn btn-primary" data-action="new-transaction"><i class="bi bi-plus-lg"></i> Nova transação</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Registros filtrados", Value = Model.TotalRecords.ToString(), Icon = "bi-list-ul", Tone = "accent", Footer = $"Página {Model.Items.Page} de {Math.Max(1, Model.Items.TotalPages)}" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total de entradas", Value = FinTrackFormat.Currency(Model.TotalIncome), Icon = "bi-arrow-down-left-circle", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total de saídas", Value = FinTrackFormat.Currency(Model.TotalExpense), Icon = "bi-arrow-up-right-circle", Tone = "danger" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Resultado", Value = FinTrackFormat.Currency(Model.TotalIncome - Model.TotalExpense), Icon = "bi-graph-up-arrow", Tone = "info" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header">
+        <div><h3 class="card-title"><i class="bi bi-funnel"></i> Filtros</h3><div class="card-subtitle">Refine os resultados exibidos</div></div>
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="filter-bar auto-loader">
+            <div style="flex:1;min-width:220px">
+                <label class="form-label">Buscar</label>
+                <input type="search" name="Search" value="@f.Search" class="form-control" placeholder="Descrição, categoria ou observação" />
+            </div>
+            <div>
+                <label class="form-label">Tipo</label>
+                <select name="Type" class="form-select" asp-items="@(new SelectList(Enum.GetValues<TransactionType>().Select(t => new SelectOption { Value = t.ToString(), Text = FinTrackFormat.TypeName(t) }), "Value", "Text", f.Type?.ToString()))"><option value="">Todos</option></select>
+            </div>
+            <div>
+                <label class="form-label">Categoria</label>
+                <select name="CategoryId" class="form-select" asp-items="@(new SelectList(Model.Categories, "Value", "Text", f.CategoryId?.ToString()))"><option value="">Todas</option></select>
+            </div>
+            <div>
+                <label class="form-label">Conta</label>
+                <select name="AccountId" class="form-select" asp-items="@(new SelectList(Model.Accounts, "Value", "Text", f.AccountId?.ToString()))"><option value="">Todas</option></select>
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <select name="Status" class="form-select" asp-items="@(new SelectList(Enum.GetValues<TransactionStatus>().Select(t => new SelectOption { Value = t.ToString(), Text = FinTrackFormat.StatusName(t) }), "Value", "Text", f.Status?.ToString()))"><option value="">Todos</option></select>
+            </div>
+            <div>
+                <label class="form-label">De</label>
+                <input type="date" name="From" value="@f.From?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div>
+                <label class="form-label">Até</label>
+                <input type="date" name="To" value="@f.To?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div>
+                <label class="form-label">Valor mín.</label>
+                <input type="number" step="0.01" name="MinAmount" value="@f.MinAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" style="max-width:120px" />
+            </div>
+            <div>
+                <label class="form-label">Valor máx.</label>
+                <input type="number" step="0.01" name="MaxAmount" value="@f.MaxAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" style="max-width:120px" />
+            </div>
+            <div>
+                <label class="form-label">Ordenar</label>
+                <select name="SortBy" class="form-select">
+                    <option value="date" selected="@(f.SortBy == "date")">Data</option>
+                    <option value="amount" selected="@(f.SortBy == "amount")">Valor</option>
+                    <option value="description" selected="@(f.SortBy == "description")">Descrição</option>
+                    <option value="category" selected="@(f.SortBy == "category")">Categoria</option>
+                    <option value="account" selected="@(f.SortBy == "account")">Conta</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Direção</label>
+                <select name="SortDir" class="form-select">
+                    <option value="desc" selected="@(f.SortDir == "desc")">Decrescente</option>
+                    <option value="asc" selected="@(f.SortDir == "asc")">Crescente</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card fade-up">
+    <div class="card-header">
+        <div><h3 class="card-title"><i class="bi bi-list-ul"></i> Lançamentos</h3><div class="card-subtitle">@Model.Items.TotalCount registro(s) encontrado(s)</div></div>
+        <span class="badge-soft badge-muted">@Model.Items.FirstItem – @Model.Items.LastItem de @Model.Items.TotalCount</span>
+    </div>
+    <div class="card-body tight">
+        @if (Model.Items.Items.Any())
+        {
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>@Html.Raw(SortHeader("description", "Descrição"))</th>
+                            <th>@Html.Raw(SortHeader("category", "Categoria"))</th>
+                            <th>@Html.Raw(SortHeader("account", "Conta"))</th>
+                            <th>@Html.Raw(SortHeader("type", "Tipo"))</th>
+                            <th>Status</th>
+                            <th>@Html.Raw(SortHeader("date", "Data"))</th>
+                            <th class="text-end">@Html.Raw(SortHeader("amount", "Valor"))</th>
+                            <th style="width:120px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Items.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="entity-cell">
+                                        <div class="entity-icon" style="background:@(t.CategoryColor)22;color:@t.CategoryColor"><i class="bi @t.CategoryIcon"></i></div>
+                                        <div>
+                                            <div class="entity-title">@t.Description</div>
+                                            @if (!string.IsNullOrEmpty(t.AttachmentName))
+                                            {
+                                                <a asp-action="DownloadAttachment" asp-route-id="@t.AttachmentId" class="entity-sub"><i class="bi bi-paperclip"></i> @t.AttachmentName</a>
+                                            }
+                                            else if (!string.IsNullOrEmpty(t.CreditCardName))
+                                            {
+                                                <div class="entity-sub"><i class="bi bi-credit-card"></i> @t.CreditCardName</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge-soft badge-muted" style="color:@t.CategoryColor">@t.CategoryName</span></td>
+                                <td class="text-muted">@t.AccountName</td>
+                                <td>
+                                    <span class="badge-soft @(t.Type == TransactionType.Income ? "badge-success" : "badge-danger")">
+                                        <i class="bi @FinTrackFormat.TypeIcon(t.Type)"></i> @FinTrackFormat.TypeName(t.Type)
+                                    </span>
+                                </td>
+                                <td><span class="badge-soft badge-@FinTrackFormat.StatusTone(t.Status)">@FinTrackFormat.StatusName(t.Status)</span></td>
+                                <td class="text-muted" style="white-space:nowrap">@FinTrackFormat.Date(t.Date)</td>
+                                <td class="text-end @(t.Type == TransactionType.Income ? "amount-in" : "amount-out")">@(t.Type == TransactionType.Income ? "+" : "−") @FinTrackFormat.Currency(t.Amount)</td>
+                                <td>
+                                    <div class="action-menu">
+                                        <button type="button" class="btn btn-sm btn-light btn-icon" title="Editar" data-action="edit-transaction" data-id="@t.Id"><i class="bi bi-pencil"></i></button>
+                                        <button type="button" class="btn btn-sm btn-light btn-icon text-danger" title="Excluir" data-action="delete-transaction" data-id="@t.Id" data-description="@t.Description"><i class="bi bi-trash3"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-arrow-left-right"></i></div>
+                <h6>Nenhuma transação encontrada</h6>
+                <p>Ajuste os filtros ou cadastre um novo lançamento para começar.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new-transaction"><i class="bi bi-plus-lg"></i> Nova transação</button>
+            </div>
+        }
+    </div>
+    @if (Model.Items.TotalPages > 1)
+    {
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span>Página @Model.Items.Page de @Model.Items.TotalPages</span>
+            <nav><ul class="pagination">
+                <li class="page-item @(Model.Items.HasPrevious ? "" : "disabled")"><a class="page-link" href="@PageUrl(Model.Items.Page - 1)"><i class="bi bi-chevron-left"></i></a></li>
+                @foreach (var p in Model.Items.PageNumbers())
+                {
+                    <li class="page-item @(p == Model.Items.Page ? "active" : "")"><a class="page-link" href="@PageUrl(p)">@p</a></li>
+                }
+                <li class="page-item @(Model.Items.HasNext ? "" : "disabled")"><a class="page-link" href="@PageUrl(Model.Items.Page + 1)"><i class="bi bi-chevron-right"></i></a></li>
+            </ul></nav>
+        </div>
+    }
+</div>
+
+<!-- Modal de formulário -->
+<div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div id="transactionFormContainer">
+                <div class="modal-body text-center py-5"><div class="spinner mx-auto"></div><p class="text-muted mt-3">Carregando formulário...</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+    (function () {
+        const modalEl = document.getElementById('transactionModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const container = document.getElementById('transactionFormContainer');
+
+        function open(id, type) {
+            container.innerHTML = '<div class="modal-body text-center py-5"><div class="spinner mx-auto"></div><p class="text-muted mt-3">Carregando...</p></div>';
+            modal.show();
+            const url = '@Url.Action("Form")' + '?' + new URLSearchParams({ id: id || '', type: type || '' });
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(html => {
+                    container.innerHTML = html;
+                    wireForm();
+                })
+                .catch(() => { container.innerHTML = '<div class="alert alert-danger m-4">Não foi possível carregar o formulário.</div>'; });
+        }
+
+        function wireForm() {
+            const form = container.querySelector('#transactionForm');
+            if (!form) return;
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+                FinTrack.loader(true);
+                try {
+                    const response = await fetch('@Url.Action("Save")', { method: 'POST', body: new FormData(form) });
+                    const result = await response.json();
+                    FinTrack.loader(false);
+                    if (result.success) { modal.hide(); location.reload(); }
+                    else {
+                        container.querySelector('#formErrors').innerHTML = (result.errors || [result.message]).map(m => `<div class="alert alert-danger py-2 small mb-1">${m}</div>`).join('');
+                    }
+                } catch (err) { FinTrack.loader(false); FinTrack.showToast('Erro ao salvar.', 'error'); }
+            });
+
+            const typeSelect = form.querySelector('[name="Type"]');
+            const categorySelect = form.querySelector('[name="CategoryId"]');
+            if (typeSelect && categorySelect) {
+                typeSelect.addEventListener('change', async () => {
+                    const res = await fetch('@Url.Action("Form")' + '?type=' + typeSelect.value, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    if (res.ok) {
+                        const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                        const fresh = doc.querySelector('[name="CategoryId"]');
+                        if (fresh) { categorySelect.innerHTML = fresh.innerHTML; }
+                    }
+                });
+            }
+        }
+
+        document.querySelectorAll('[data-action="new-transaction"]').forEach(el => el.addEventListener('click', () => open(null, null)));
+        document.querySelectorAll('[data-action="edit-transaction"]').forEach(el => el.addEventListener('click', () => open(el.dataset.id, null)));
+        document.querySelectorAll('[data-action="delete-transaction"]').forEach(el => el.addEventListener('click', async () => {
+            const confirmed = typeof Swal !== 'undefined' && await Swal.fire({
+                title: 'Confirmar exclusão?', text: `Excluir "${el.dataset.description}"?`,
+                icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, excluir', cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#f43f5e', cancelButtonColor: '#64748b',
+                background: getComputedStyle(document.documentElement).getPropertyValue('--surface'),
+                color: getComputedStyle(document.documentElement).getPropertyValue('--text')
+            }).then(r => r.isConfirmed);
+            if (!confirmed) return;
+            FinTrack.loader(true);
+            const body = new URLSearchParams({ id: el.dataset.id });
+            const res = await fetch('@Url.Action("Delete")', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': FinTrack.csrfToken() },
+                body
+            });
+            const result = await res.json();
+            FinTrack.loader(false);
+            FinTrack.showToast(result.message, result.success ? 'success' : 'error');
+            if (result.success) setTimeout(() => location.reload(), 700);
+        }));
+        wireForm();
+        const params = new URLSearchParams(location.search);
+        if (params.get('new') === '1') open(null, params.get('Type') || null);
+    })();
+    </script>
+}

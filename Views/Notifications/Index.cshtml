@@ -1,0 +1,121 @@
+@model NotificationListViewModel
+@{
+    ViewData["Title"] = "Notificações";
+    var paged = Model.Items;
+    string TypeClass(NotificationType t) => t switch
+    {
+        NotificationType.Success => "success",
+        NotificationType.Warning => "warning",
+        NotificationType.Danger => "danger",
+        _ => "info"
+    };
+    string TypeIcon(Notification n) => n.Category switch
+    {
+        NotificationCategory.Budget => "bi-pie-chart",
+        NotificationCategory.Goal => "bi-trophy",
+        NotificationCategory.Invoice => "bi-credit-card",
+        NotificationCategory.Transaction => "bi-arrow-left-right",
+        _ => "bi-bell"
+    };
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Central de notificações</h1>
+        <p class="page-subtitle">Alertas de orçamentos, metas, faturas e pendências do sistema.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-outline-secondary" id="markAll"><i class="bi bi-check-all"></i> Marcar todas como lidas</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Não lidas", Value = Model.UnreadCount.ToString(), Icon = "bi-bell", Tone = "warning" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total", Value = Model.TotalCount.ToString(), Icon = "bi-list-ul", Tone = "accent" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Nesta página", Value = paged.Items.Count.ToString(), Icon = "bi-file-earmark-text", Tone = "info" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Alertas gerados", Value = "automáticos", Icon = "bi-robot", Tone = "success", Footer = "Orçamentos, metas e faturas" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header">
+        <div><h3 class="card-title"><i class="bi bi-bell"></i> Todas as notificações</h3><div class="card-subtitle">@paged.FirstItem–@paged.LastItem de @paged.TotalCount</div></div>
+        <form method="get" asp-action="Index" class="d-flex gap-2 align-items-center">
+            <select name="unread" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" asp-items="@(new SelectList(new[] { new SelectOption { Value = "true", Text = "Não lidas" }, new SelectOption { Value = "false", Text = "Lidas" } }, "Value", "Text", Model.Unread?.ToString().ToLowerInvariant()))">
+                <option value="">Todas</option>
+            </select>
+            <select name="category" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" asp-items="@(new SelectList(Enum.GetValues<NotificationCategory>().Select(c => new SelectOption { Value = c.ToString(), Text = c switch { NotificationCategory.Budget => "Orçamentos", NotificationCategory.Goal => "Metas", NotificationCategory.Invoice => "Faturas", NotificationCategory.Transaction => "Transações", NotificationCategory.DueDate => "Vencimentos", NotificationCategory.Recurring => "Recorrências", _ => "Alertas" } }), "Value", "Text", Model.Category?.ToString()))">
+                <option value="">Todas as categorias</option>
+            </select>
+        </form>
+    </div>
+    <div class="card-body">
+        @if (paged.Items.Any())
+        {
+            <div class="notification-list">
+                @foreach (var n in paged.Items)
+                {
+                    <div class="notification-row @(n.IsRead ? "" : "unread")">
+                        <div class="notification-icon bg-@TypeClass(n.Type)-soft"><i class="bi @TypeIcon(n)"></i></div>
+                        <div style="flex:1;min-width:0">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <strong style="font-size:13px">@n.Title</strong>
+                                @if (!n.IsRead) { <span class="badge-soft badge-accent">Nova</span> }
+                            </div>
+                            <div class="text-muted" style="font-size:12px">@n.Message</div>
+                            <div class="entity-sub">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm") @if (!string.IsNullOrEmpty(n.ActionUrl)) { <text> · <a href="@n.ActionUrl">abrir destino</a></text> }</div>
+                        </div>
+                        <div class="d-flex gap-1">
+                            @if (!n.IsRead)
+                            {
+                                <button type="button" class="btn btn-sm btn-light btn-icon" title="Marcar como lida" data-action="read" data-id="@n.Id"><i class="bi bi-check2"></i></button>
+                            }
+                            <button type="button" class="btn btn-sm btn-light btn-icon text-danger" title="Excluir" data-action="delete" data-id="@n.Id"><i class="bi bi-trash3"></i></button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (paged.TotalPages > 1)
+            {
+                <nav class="mt-3"><ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item @(paged.HasPrevious ? "" : "disabled")"><a class="page-link" href="@Url.Action("Index", new { unread = Model.Unread, category = Model.Category, page = paged.Page - 1 })">‹</a></li>
+                    @foreach (var page in paged.PageNumbers())
+                    {
+                        <li class="page-item @(page == paged.Page ? "active" : "")"><a class="page-link" href="@Url.Action("Index", new { unread = Model.Unread, category = Model.Category, page = page })">@(page)</a></li>
+                    }
+                    <li class="page-item @(paged.HasNext ? "" : "disabled")"><a class="page-link" href="@Url.Action("Index", new { unread = Model.Unread, category = Model.Category, page = paged.Page + 1 })">›</a></li>
+                </ul></nav>
+            }
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-bell-slash", Title = "Nenhuma notificação", Message = "Você está em dia! Alertas aparecerão aqui automaticamente." })
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function post(url, body) {
+                return fetch(url, { method: 'POST', headers: { 'RequestVerificationToken': FinTrack.csrfToken() }, body: new URLSearchParams(body) }).then(r => r.json());
+            }
+            document.querySelectorAll('[data-action="read"]').forEach(el => el.addEventListener('click', async () => {
+                const result = await post('@Url.Action("MarkRead")', { id: el.dataset.id });
+                if (result.success) { FinTrack.showToast('Notificação marcada como lida.', 'success'); setTimeout(() => location.reload(), 500); }
+            }));
+            document.querySelectorAll('[data-action="delete"]').forEach(el => el.addEventListener('click', async () => {
+                const r = await Swal.fire({ title: 'Excluir notificação?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, excluir', cancelButtonText: 'Cancelar', confirmButtonColor: '#f43f5e', cancelButtonColor: '#64748b' });
+                if (!r.isConfirmed) return;
+                const result = await post('@Url.Action("Delete")', { id: el.dataset.id });
+                FinTrack.showToast(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => location.reload(), 500);
+            }));
+            document.getElementById('markAll').addEventListener('click', async () => {
+                const result = await post('@Url.Action("MarkAllRead")', {});
+                FinTrack.showToast(result.message, 'success');
+                if (result.count > 0) setTimeout(() => location.reload(), 600);
+            });
+        });
+    </script>
+}

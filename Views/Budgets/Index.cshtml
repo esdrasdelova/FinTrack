@@ -1,0 +1,107 @@
+@model BudgetListViewModel
+@{
+    ViewData["Title"] = "Orçamentos";
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Orçamentos</h1>
+        <p class="page-subtitle">Defina limites por categoria e acompanhe o consumo do mês.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" data-action="new"><i class="bi bi-plus-lg"></i> Novo orçamento</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Limite orçado", Value = FinTrackFormat.Currency(Model.TotalLimit), Icon = "bi-pie-chart", Tone = "accent", Footer = $"{Model.Items.Count} categoria(s)" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Consumido", Value = FinTrackFormat.Currency(Model.TotalUsed), Icon = "bi-arrow-up-right-circle", Tone = "danger", Footer = Model.TotalLimit > 0 ? $"{FinTrackFormat.Percent(Model.TotalUsed / Model.TotalLimit * 100)} do total orçado" : "" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Disponível", Value = FinTrackFormat.Currency(Model.TotalLimit - Model.TotalUsed), Icon = "bi-wallet2", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Limites excedidos", Value = Model.ExceededCount.ToString(), Icon = "bi-exclamation-triangle", Tone = "warning", Footer = "Categorias acima do limite" })
+</div>
+
+@if (Model.Items.Any())
+{
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Limite × consumido</h3><div class="card-subtitle">Comparativo por categoria</div></div></div>
+        <div class="card-body"><div class="chart-box sm"><div class="chart-skeleton"></div><canvas id="chartBudgets"></canvas></div></div>
+    </div>
+}
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-pie-chart"></i> Orçamentos por categoria</h3><div class="card-subtitle">Progresso no mês corrente</div></div></div>
+    <div class="card-body">
+        @if (Model.Items.Any())
+        {
+            <div class="row g-3">
+                @foreach (var b in Model.Items)
+                {
+                    var tone = b.IsExceeded ? "danger" : b.IsWarning ? "warning" : "accent";
+                    <div class="col-lg-6">
+                        <div class="card mb-0 h-100" style="border-left:3px solid @b.Color">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="entity-icon" style="background:@(b.Color)22;color:@b.Color"><i class="bi @b.CategoryIcon"></i></div>
+                                        <div>
+                                            <div class="entity-title">@b.CategoryName</div>
+                                            <div class="entity-sub">@b.Period</div>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="icon-button" type="button" data-bs-toggle="dropdown" style="width:30px;height:30px"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><button type="button" class="dropdown-item" data-action="edit" data-id="@b.Id"><i class="bi bi-pencil"></i> Editar</button></li>
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li><button type="button" class="dropdown-item text-danger" data-action="delete" data-id="@b.Id" data-confirm="Excluir o orçamento de &quot;@b.CategoryName&quot;?"><i class="bi bi-trash3"></i> Excluir</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="d-flex justify-content-between align-items-end mb-2">
+                                    <div>
+                                        <div class="metric-label">Utilizado</div>
+                                        <div class="metric-value mb-0" style="font-size:20px;color:var(--@tone)">@FinTrackFormat.Currency(b.Used)</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="metric-label">Limite</div>
+                                        <div style="font-weight:650">@FinTrackFormat.Currency(b.Limit)</div>
+                                    </div>
+                                </div>
+                                <div class="progress" style="height:10px"><div class="progress-bar bg-@tone" style="width:@Math.Min(b.Percent, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+                                <div class="d-flex justify-content-between mt-2" style="font-size:11px">
+                                    <span class="text-muted">@FinTrackFormat.Percent(b.Percent) · alerta em @FinTrackFormat.Percent(b.AlertThreshold)</span>
+                                    <span class="@(b.Remaining < 0 ? "text-danger" : "text-success")">
+                                        @(b.Remaining < 0 ? "Excedido: " : "Disponível: ") @FinTrackFormat.Currency(Math.Abs(b.Remaining))
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-pie-chart"></i></div>
+                <h6>Nenhum orçamento definido</h6>
+                <p>Defina limites de gastos por categoria para manter suas finanças sob controle.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new"><i class="bi bi-plus-lg"></i> Novo orçamento</button>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            FinTrackCrud.setup({
+                formUrl: '@Url.Action("Form")', saveUrl: '@Url.Action("Save")', deleteUrl: '@Url.Action("Delete")'
+            });
+            @if (Model.Items.Any()) { <text>FinTrackCharts.render('chartBudgets', @Html.Raw(Model.ChartJson));</text> }
+        });
+    </script>
+}

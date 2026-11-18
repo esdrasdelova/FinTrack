@@ -1,0 +1,79 @@
+@inject INotificationService NotificationService
+@inject ICurrentUserService CurrentUser
+@{
+    var unread = await NotificationService.GetUnreadCountAsync();
+    var profile = await CurrentUser.GetProfileAsync();
+    var name = string.IsNullOrWhiteSpace(profile?.FullName) ? CurrentUser.UserName : profile!.FullName;
+    var initials = string.Join(string.Empty, name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    var searchTerm = Context.Request.Query["q"].ToString();
+}
+
+<header class="topbar">
+    <button class="icon-button menu-toggle" type="button" data-action="sidebar" title="Menu">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <form class="topbar-search" asp-controller="Transactions" asp-action="Index" method="get">
+        <i class="bi bi-search"></i>
+        <input type="search" name="Search" value="@searchTerm" placeholder="Buscar transações, categorias..." aria-label="Buscar" />
+    </form>
+
+    <div class="topbar-spacer"></div>
+
+    <button class="icon-button" type="button" data-action="theme" title="Alternar tema">
+        <i class="bi" data-theme-icon></i>
+    </button>
+
+    <div class="dropdown">
+        <button class="icon-button icon-wrap" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Notificações">
+            <i class="bi bi-bell"></i>
+            @if (unread > 0)
+            {
+                <span class="notify-dot" id="notificationDot"></span>
+                <span class="visually-hidden" id="notificationBadge">@unread</span>
+            }
+            else
+            {
+                <span class="visually-hidden" id="notificationBadge">0</span>
+            }
+        </button>
+        <div class="dropdown-menu dropdown-menu-end" style="width:340px;max-width:92vw">
+            <div class="d-flex align-items-center justify-content-between px-2 py-1">
+                <strong style="font-size:13px">Notificações</strong>
+                <a asp-controller="Notifications" asp-action="Index" style="font-size:11px">Ver todas</a>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div id="notificationList" style="max-height:340px;overflow-y:auto">
+                <div class="empty-state" style="padding:18px"><div class="skeleton-line mb-2"></div><div class="skeleton-line" style="width:65%"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <div class="dropdown">
+        <button class="d-flex align-items-center gap-2 border-0 bg-transparent p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="cursor:pointer">
+            @if (!string.IsNullOrEmpty(profile?.AvatarUrl))
+            {
+                <img src="@profile.AvatarUrl" class="avatar" alt="Avatar" />
+            }
+            else
+            {
+                <div class="avatar-initials">@initials</div>
+            }
+            <i class="bi bi-chevron-down text-muted-2" style="font-size:11px"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li class="dropdown-header">@name</li>
+            <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index"><i class="bi bi-person"></i>Meu perfil</a></li>
+            <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index"><i class="bi bi-sliders"></i>Preferências</a></li>
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="dropdown-item w-100 text-danger"><i class="bi bi-box-arrow-right"></i>Sair da conta</button>
+                </form>
+            </li>
+        </ul>
+    </div>
+</header>

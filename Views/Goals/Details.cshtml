@@ -1,0 +1,122 @@
+@model GoalDetailsViewModel
+@{
+    ViewData["Title"] = Model.Goal.Name;
+    var g = Model.Goal;
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">@g.Name</h1>
+        <p class="page-subtitle">@(string.IsNullOrEmpty(g.Description) ? "Acompanhe os aportes e o progresso da sua meta." : g.Description)</p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+        <button type="button" class="btn btn-primary" data-action="new-contribution"><i class="bi bi-plus-lg"></i> Novo aporte</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Acumulado", Value = FinTrackFormat.Currency(g.Current), Icon = "bi-piggy-bank", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Valor alvo", Value = FinTrackFormat.Currency(g.Target), Icon = "bi-bullseye", Tone = "accent" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Ainda falta", Value = FinTrackFormat.Currency(g.Missing), Icon = "bi-hourglass-split", Tone = "warning" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Progresso", Value = FinTrackFormat.Percent(g.Percent), Icon = "bi-graph-up-arrow", Tone = "info", Footer = $"{g.ContributionCount} aporte(s)" })
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-graph-up"></i> Evolução dos aportes</h3><div class="card-subtitle">Valor acumulado ao longo do tempo</div></div></div>
+        <div class="card-body">
+            @if (Model.Contributions.Any())
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartGoalEvolution"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-graph-up", Title = "Sem aportes registrados", Message = "Registre um aporte para acompanhar a evolução." })
+            }
+        </div>
+    </div>
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-info-circle"></i> Detalhes da meta</h3></div></div>
+        <div class="card-body">
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Prazo</div><div class="list-row-title">@FinTrackFormat.Date(g.Deadline)</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Dias restantes</div><div class="list-row-title">@(g.IsCompleted ? "Concluída" : g.DaysRemaining < 0 ? $"{Math.Abs(g.DaysRemaining)} em atraso" : $"{g.DaysRemaining} dias")</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Último aporte</div><div class="list-row-title">@(g.LastContribution.HasValue ? FinTrackFormat.Date(g.LastContribution.Value) : "—")</div></div></div>
+            <div class="list-row"><div class="list-row-main"><div class="list-row-sub">Status</div><div class="list-row-title">@(g.IsCompleted ? "Concluída" : "Em andamento")</div></div></div>
+            <div class="divider"></div>
+            <div class="progress" style="height:12px"><div class="progress-bar bg-success" style="width:@g.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+            <div class="text-center mt-2 text-muted" style="font-size:12px">@FinTrackFormat.Percent(g.Percent) concluído</div>
+        </div>
+    </div>
+</div>
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-list-ul"></i> Histórico de aportes</h3><div class="card-subtitle">Todos os valores adicionados à meta</div></div></div>
+    <div class="card-body tight">
+        @if (Model.Contributions.Any())
+        {
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Data</th><th>Observação</th><th class="text-end">Valor</th><th style="width:50px"></th></tr></thead>
+                <tbody>
+                    @foreach (var c in Model.Contributions)
+                    {
+                        <tr>
+                            <td class="text-muted">@FinTrackFormat.Date(c.Date)</td>
+                            <td>@(string.IsNullOrEmpty(c.Notes) ? "—" : c.Notes)</td>
+                            <td class="text-end amount-in">+ @FinTrackFormat.Currency(c.Amount)</td>
+                            <td><button type="button" class="btn btn-sm btn-light btn-icon text-danger" title="Remover aporte" data-action="delete-contribution" data-id="@c.Id" data-amount="@c.Amount"><i class="bi bi-trash3"></i></button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-inbox", Title = "Nenhum aporte registrado" })
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+<div class="modal fade" id="contributionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content" id="contributionContainer"></div></div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (Model.Contributions.Any()) { <text>FinTrackCharts.render('chartGoalEvolution', @Html.Raw(Model.EvolutionChartJson));</text> }
+
+            const modal = new bootstrap.Modal(document.getElementById('contributionModal'));
+            const container = document.getElementById('contributionContainer');
+            function open() {
+                container.innerHTML = '<div class="modal-body text-center py-4"><div class="spinner mx-auto"></div></div>';
+                modal.show();
+                fetch('@Url.Action("ContributionForm")?goalId=@g.Id', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.text()).then(html => {
+                        container.innerHTML = html;
+                        container.querySelector('#contributionForm')?.addEventListener('submit', async e => {
+                            e.preventDefault();
+                            FinTrack.loader(true);
+                            const res = await fetch('@Url.Action("AddContribution")', { method: 'POST', body: new FormData(e.target) });
+                            const result = await res.json();
+                            FinTrack.loader(false);
+                            if (result.success) { modal.hide(); FinTrack.showToast(result.message, 'success'); setTimeout(() => location.reload(), 600); }
+                            else { container.querySelector('#formErrors').innerHTML = (result.errors || [result.message]).map(m => `<div class="alert alert-danger py-2 small mb-1">${m}</div>`).join(''); }
+                        });
+                    });
+            }
+            document.querySelectorAll('[data-action="new-contribution"]').forEach(el => el.addEventListener('click', open));
+            document.querySelectorAll('[data-action="delete-contribution"]').forEach(el => el.addEventListener('click', async () => {
+                const r = await Swal.fire({ title: 'Remover aporte?', text: `O valor de R$ ${el.dataset.amount} será deduzido da meta.`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, remover', cancelButtonText: 'Cancelar', confirmButtonColor: '#f43f5e', cancelButtonColor: '#64748b' });
+                if (!r.isConfirmed) return;
+                FinTrack.loader(true);
+                const res = await fetch('@Url.Action("DeleteContribution")', { method: 'POST', headers: { 'RequestVerificationToken': FinTrack.csrfToken() }, body: new URLSearchParams({ id: el.dataset.id }) });
+                const result = await res.json();
+                FinTrack.loader(false);
+                FinTrack.showToast(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => location.reload(), 600);
+            }));
+        });
+    </script>
+}

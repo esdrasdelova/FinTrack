@@ -1,0 +1,113 @@
+@inject INotificationService NotificationService
+@inject ICurrentUserService CurrentUser
+@{
+    var current = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var unread = await NotificationService.GetUnreadCountAsync();
+    var profile = await CurrentUser.GetProfileAsync();
+    var CurrentUserName = string.IsNullOrWhiteSpace(profile?.FullName) ? CurrentUser.UserName : profile!.FullName;
+    var CurrentUserAvatar = profile?.AvatarUrl;
+    var IsDemoAccount = profile?.IsDemo == true;
+    var Initials = string.Join(string.Empty, CurrentUserName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    string Active(params string[] names) => names.Contains(current, StringComparer.OrdinalIgnoreCase) ? "active" : "";
+}
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-mark">F</div>
+        <div>
+            <div class="brand-name">Fin<span>Track</span></div>
+            <div class="brand-sub">Financial Suite</div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-group">
+            <div class="nav-group-title">Visão geral</div>
+            <a class="nav-link @Active("Dashboard", "Home")" asp-controller="Dashboard" asp-action="Index" title="Dashboard">
+                <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
+            </a>
+            <a class="nav-link @Active("Transactions")" asp-controller="Transactions" asp-action="Index" title="Transações">
+                <i class="bi bi-arrow-left-right"></i><span>Transações</span>
+            </a>
+            <a class="nav-link @Active("Income")" asp-controller="Income" asp-action="Index" title="Receitas">
+                <i class="bi bi-arrow-down-left-circle"></i><span>Receitas</span>
+            </a>
+            <a class="nav-link @Active("Expenses")" asp-controller="Expenses" asp-action="Index" title="Despesas">
+                <i class="bi bi-arrow-up-right-circle"></i><span>Despesas</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title">Organização</div>
+            <a class="nav-link @Active("Accounts")" asp-controller="Accounts" asp-action="Index" title="Contas e carteiras">
+                <i class="bi bi-wallet2"></i><span>Contas e carteiras</span>
+            </a>
+            <a class="nav-link @Active("Cards")" asp-controller="Cards" asp-action="Index" title="Cartões">
+                <i class="bi bi-credit-card-2-front"></i><span>Cartões</span>
+            </a>
+            <a class="nav-link @Active("Budgets")" asp-controller="Budgets" asp-action="Index" title="Orçamentos">
+                <i class="bi bi-pie-chart"></i><span>Orçamentos</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title">Planejamento</div>
+            <a class="nav-link @Active("Goals")" asp-controller="Goals" asp-action="Index" title="Metas financeiras">
+                <i class="bi bi-bullseye"></i><span>Metas financeiras</span>
+            </a>
+            <a class="nav-link @Active("Investments")" asp-controller="Investments" asp-action="Index" title="Investimentos">
+                <i class="bi bi-graph-up-arrow"></i><span>Investimentos</span>
+            </a>
+            <a class="nav-link @Active("Reports")" asp-controller="Reports" asp-action="Index" title="Relatórios">
+                <i class="bi bi-file-bar-graph"></i><span>Relatórios</span>
+            </a>
+            <a class="nav-link @Active("Calendar")" asp-controller="Calendar" asp-action="Index" title="Calendário financeiro">
+                <i class="bi bi-calendar3"></i><span>Calendário</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title">Sistema</div>
+            <a class="nav-link @Active("Notifications")" asp-controller="Notifications" asp-action="Index" title="Notificações">
+                <i class="bi bi-bell"></i><span>Notificações</span>
+                @if (unread > 0)
+                {
+                    <span class="nav-badge">@unread</span>
+                }
+            </a>
+            <a class="nav-link @Active("Settings")" asp-controller="Settings" asp-action="Index" title="Configurações">
+                <i class="bi bi-gear"></i><span>Configurações</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="side-user">
+            @if (!string.IsNullOrEmpty(CurrentUserAvatar))
+            {
+                <img src="@CurrentUserAvatar" class="avatar" alt="Avatar" />
+            }
+            else
+            {
+                <div class="avatar-initials">@Initials</div>
+            }
+            <div class="side-user-info">
+                <div class="side-user-name">@CurrentUserName</div>
+                <div class="side-user-mail">@profile?.Email</div>
+            </div>
+            <form asp-controller="Account" asp-action="Logout" method="post" class="ms-auto">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="icon-button" title="Sair" style="width:32px;height:32px">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+        @if (IsDemoAccount)
+        {
+            <div class="mt-2 text-center collapse-label" style="font-size:10px;letter-spacing:.08em;color:var(--muted-2)">
+                <i class="bi bi-info-circle"></i> CONTA DE DEMONSTRAÇÃO
+            </div>
+        }
+    </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

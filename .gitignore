@@ -424,3 +424,9 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# FinTrack - arquivos locais
+wwwroot/uploads/
+**/wwwroot/uploads/
+appsettings.*.local.json
+secrets.json

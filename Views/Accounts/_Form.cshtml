@@ -1,0 +1,88 @@
+@model AccountFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+    var colors = new[] { "#6366f1", "#10b981", "#f43f5e", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#14b8a6" };
+    var icons = new[] { "bi-wallet2", "bi-bank", "bi-piggy-bank", "bi-phone", "bi-graph-up", "bi-cash-stack" };
+}
+<div class="modal-header">
+    <h5 class="modal-title"><i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle")"></i> @(isEdit ? "Editar conta" : "Nova conta")</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="crudForm" asp-action="Save" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div class="row g-3">
+            <div class="col-sm-8">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" placeholder="Ex.: Conta corrente principal" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="Type" class="form-label"></label>
+                <select asp-for="Type" class="form-select" asp-items="@(new SelectList(Enum.GetValues<AccountType>().Select(t => new SelectOption { Value = t.ToString(), Text = FinTrackFormat.AccountTypeName(t) }), "Value", "Text"))"></select>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Institution" class="form-label"></label>
+                <input asp-for="Institution" class="form-control" placeholder="Ex.: Banco Inter" />
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="InitialBalance" class="form-label">Saldo inicial (R$)</label>
+                <input asp-for="InitialBalance" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="InitialBalance" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Cor de identificação</label>
+                <div class="d-flex gap-2 flex-wrap">
+                    @foreach (var color in colors)
+                    {
+                        <label class="color-choice" style="background:@color;@(Model.Color == color ? "outline:2px solid #fff;outline-offset:2px;" : "")">
+                            <input type="radio" name="Color" value="@color" @(Model.Color == color ? "checked" : "") />
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Ícone</label>
+                <div class="d-flex gap-2 flex-wrap">
+                    @foreach (var icon in icons)
+                    {
+                        <label class="icon-choice @(Model.Icon == icon ? "selected" : "")">
+                            <input type="radio" name="Icon" value="@icon" @(Model.Icon == icon ? "checked" : "") />
+                            <i class="bi @icon"></i>
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                    <label asp-for="IsActive" class="form-check-label">Conta ativa</label>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="crudForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> @(isEdit ? "Salvar alterações" : "Cadastrar conta")</button>
+</div>
+
+<style>
+    .color-choice { width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-block; }
+    .color-choice input { display:none; }
+    .icon-choice { width:38px;height:38px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;cursor:pointer;font-size:17px;color:var(--muted); }
+    .icon-choice.selected { border-color:var(--accent);color:var(--accent);background:var(--accent-soft); }
+    .icon-choice input { display:none; }
+</style>
+<script>
+    document.querySelectorAll('.icon-choice input, .color-choice input').forEach(input => {
+        input.addEventListener('change', () => {
+            document.querySelectorAll('.icon-choice').forEach(el => el.classList.remove('selected'));
+            input.closest('.icon-choice')?.classList.add('selected');
+            document.querySelectorAll('.color-choice').forEach(el => el.style.outline = 'none');
+            if (input.closest('.color-choice')) input.closest('.color-choice').style.outline = '2px solid #fff';
+        });
+    });
+</script>

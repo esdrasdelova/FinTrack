@@ -1,0 +1,93 @@
+@model AccountListViewModel
+@{
+    ViewData["Title"] = "Contas e carteiras";
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Contas e carteiras</h1>
+        <p class="page-subtitle">Gerencie contas bancárias, carteiras e sua carteira de investimentos.</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" data-action="new"><i class="bi bi-plus-lg"></i> Nova conta</button>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saldo consolidado", Value = FinTrackFormat.Currency(Model.TotalBalance), Icon = "bi-wallet2", Tone = "accent", Footer = "Soma das contas ativas" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saldo inicial", Value = FinTrackFormat.Currency(Model.TotalInitial), Icon = "bi-bank", Tone = "info", Footer = "Valor de abertura declarado" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Contas ativas", Value = Model.ActiveCount.ToString(), Icon = "bi-check-circle", Tone = "success", Footer = $"{Model.Items.Count} conta(s) cadastrada(s)" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Variação", Value = FinTrackFormat.Currency(Model.TotalBalance - Model.TotalInitial), Icon = "bi-graph-up-arrow", Tone = "warning", Footer = "Resultado acumulado" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-wallet2"></i> Minhas contas</h3><div class="card-subtitle">Saldos atualizados automaticamente com as transações</div></div></div>
+    <div class="card-body">
+        @if (Model.Items.Any())
+        {
+            <div class="row g-3">
+                @foreach (var a in Model.Items)
+                {
+                    <div class="col-xl-4 col-lg-6">
+                        <div class="card mb-0" style="border-left:3px solid @a.Color">
+                            <div class="card-body">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="entity-icon" style="background:@(a.Color)22;color:@a.Color;font-size:18px;width:44px;height:44px"><i class="bi @a.Icon"></i></div>
+                                    <div style="flex:1;min-width:0">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <h4 class="mb-0" style="font-size:15px">@a.Name</h4>
+                                            <span class="badge-soft @(a.IsActive ? "badge-success" : "badge-muted")">@(a.IsActive ? "Ativa" : "Inativa")</span>
+                                        </div>
+                                        <div class="entity-sub">@FinTrackFormat.AccountTypeName(a.Type)@(string.IsNullOrEmpty(a.Institution) ? "" : $" · {a.Institution}")</div>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="icon-button" type="button" data-bs-toggle="dropdown" style="width:30px;height:30px"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" asp-action="Details" asp-route-id="@a.Id"><i class="bi bi-eye"></i> Detalhes</a></li>
+                                            <li><button type="button" class="dropdown-item" data-action="edit" data-id="@a.Id"><i class="bi bi-pencil"></i> Editar</button></li>
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li><button type="button" class="dropdown-item text-danger" data-action="delete" data-id="@a.Id" data-confirm="Excluir a conta &quot;@a.Name&quot;?"><i class="bi bi-trash3"></i> Excluir</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="d-flex justify-content-between align-items-end">
+                                    <div>
+                                        <div class="metric-label">Saldo atual</div>
+                                        <div class="metric-value mb-0" style="font-size:22px;color:@a.Color">@FinTrackFormat.Currency(a.CurrentBalance)</div>
+                                    </div>
+                                    <a asp-action="Details" asp-route-id="@a.Id" class="btn btn-sm btn-light"><i class="bi bi-arrow-up-right-circle"></i> Extrato</a>
+                                </div>
+                                <div class="mt-2" style="font-size:11px;color:var(--muted-2)">
+                                    <i class="bi bi-arrow-left-right"></i> @a.TransactionCount transação(ões) vinculada(s)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-wallet2"></i></div>
+                <h6>Nenhuma conta cadastrada</h6>
+                <p>Cadastre sua primeira conta para começar a registrar transações.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="new"><i class="bi bi-plus-lg"></i> Nova conta</button>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CrudModal")
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            FinTrackCrud.setup({
+                formUrl: '@Url.Action("Form")', saveUrl: '@Url.Action("Save")', deleteUrl: '@Url.Action("Delete")',
+                newSelector: '[data-action="new"]', editSelector: '[data-action="edit"]', deleteSelector: '[data-action="delete"]'
+            });
+        });
+    </script>
+}

@@ -1,0 +1,138 @@
+@model CalendarViewModel
+@{
+    ViewData["Title"] = "Calendário";
+    var firstDay = new DateTime(Model.Year, Model.Month, 1);
+    var offset = ((int)firstDay.DayOfWeek + 6) % 7;
+    var daysInMonth = DateTime.DaysInMonth(Model.Year, Model.Month);
+    var prev = firstDay.AddMonths(-1);
+    var next = firstDay.AddMonths(1);
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Calendário</h1>
+        <p class="page-subtitle">Transações, faturas, recorrências e prazos de metas em um só lugar.</p>
+    </div>
+    <div class="page-actions">
+        <a asp-controller="Transactions" asp-action="Index" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova transação</a>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Receitas no mês", Value = FinTrackFormat.Currency(Model.Income), Icon = "bi-arrow-down-left-circle", Tone = "success" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Despesas no mês", Value = FinTrackFormat.Currency(Model.Expenses), Icon = "bi-arrow-up-right-circle", Tone = "danger" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Saldo do mês", Value = FinTrackFormat.Currency(Model.Income - Model.Expenses), Icon = "bi-calculator", Tone = "accent" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Compromissos", Value = Model.Events.Count.ToString(), Icon = "bi-calendar-event", Tone = "warning" })
+</div>
+
+<div class="card fade-up">
+    <div class="card-header">
+        <div><h3 class="card-title"><i class="bi bi-calendar3"></i> <span id="calendarMonthLabel">@Model.MonthLabel</span></h3><div class="card-subtitle">Clique nas setas para navegar entre os meses</div></div>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" class="btn btn-sm btn-light btn-icon" id="prevMonth" title="Mês anterior" data-year="@prev.Year" data-month="@prev.Month"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" class="btn btn-sm btn-light" id="todayMonth">Hoje</button>
+            <button type="button" class="btn btn-sm btn-light btn-icon" id="nextMonth" title="Próximo mês" data-year="@next.Year" data-month="@next.Month"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="calendarGrid" class="calendar-grid">
+            @for (var d = 0; d < offset; d++) { <div class="calendar-cell empty"></div> }
+            @for (var day = 1; day <= daysInMonth; day++)
+            {
+                var events = Model.Events.Where(e => e.Day == day).ToList();
+                var isToday = Model.Year == DateTime.Today.Year && Model.Month == DateTime.Today.Month && day == DateTime.Today.Day;
+                <div class="calendar-cell @(isToday ? "today" : "")">
+                    <div class="calendar-day">@day</div>
+                    @foreach (var ev in events.Take(3))
+                    {
+                        if (!string.IsNullOrEmpty(ev.Url))
+                        {
+                            <a href="@ev.Url" class="calendar-event badge-@ev.Tone" title="@ev.Title">
+                                <i class="bi @ev.Icon"></i> <span>@ev.Title</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="calendar-event badge-@ev.Tone" title="@ev.Title">
+                                <i class="bi @ev.Icon"></i> <span>@ev.Title</span>
+                            </div>
+                        }
+                    }
+                    @if (events.Count > 3)
+                    {
+                        <div class="calendar-more">+@(events.Count - 3) evento(s)</div>
+                    }
+                </div>
+            }
+        </div>
+        <div class="d-flex gap-3 flex-wrap mt-3" style="font-size:11px;color:var(--muted)">
+            <span><i class="bi bi-circle-fill text-success"></i> Receita</span>
+            <span><i class="bi bi-circle-fill text-danger"></i> Despesa</span>
+            <span><i class="bi bi-circle-fill text-warning"></i> Recorrência</span>
+            <span><i class="bi bi-circle-fill text-info"></i> Meta / fatura</span>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const grid = document.getElementById('calendarGrid');
+            const label = document.getElementById('calendarMonthLabel');
+            let year = @Model.Year, month = @Model.Month;
+
+            function esc(value) {
+                return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            }
+
+            function render(data) {
+                year = data.year; month = data.month;
+                label.textContent = data.monthLabel;
+                const offset = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+                const days = new Date(year, month, 0).getDate();
+                const today = new Date();
+                let html = '';
+                for (let i = 0; i < offset; i++) html += '<div class="calendar-cell empty"></div>';
+                for (let day = 1; day <= days; day++) {
+                    const events = data.events.filter(e => e.day === day);
+                    const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === day;
+                    html += `<div class="calendar-cell ${isToday ? 'today' : ''}"><div class="calendar-day">${day}</div>`;
+                    events.slice(0, 3).forEach(e => {
+                        const content = `<i class="bi ${esc(e.icon)}"></i> <span>${esc(e.title)}</span>`;
+                        html += e.url
+                            ? `<a href="${esc(e.url)}" class="calendar-event badge-${esc(e.tone)}" title="${esc(e.title)}">${content}</a>`
+                            : `<div class="calendar-event badge-${esc(e.tone)}" title="${esc(e.title)}">${content}</div>`;
+                    });
+                    if (events.length > 3) html += `<div class="calendar-more">+${events.length - 3} evento(s)</div>`;
+                    html += '</div>';
+                }
+                grid.innerHTML = html;
+                document.getElementById('prevMonth').dataset.year = month === 1 ? year - 1 : year;
+                document.getElementById('prevMonth').dataset.month = month === 1 ? 12 : month - 1;
+                document.getElementById('nextMonth').dataset.year = month === 12 ? year + 1 : year;
+                document.getElementById('nextMonth').dataset.month = month === 12 ? 1 : month + 1;
+            }
+
+            async function load(y, m) {
+                FinTrack.loader(true);
+                try {
+                    const res = await fetch('@Url.Action("Events")?year=' + y + '&month=' + m, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const data = await res.json();
+                    render(data);
+                    const kpis = document.querySelectorAll('.kpi-grid .metric-value');
+                    if (kpis.length >= 4) {
+                        const money = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+                        kpis[0].textContent = money(data.income);
+                        kpis[1].textContent = money(data.expenses);
+                        kpis[2].textContent = money(data.income - data.expenses);
+                        kpis[3].textContent = data.events.length;
+                    }
+                } finally { FinTrack.loader(false); }
+            }
+
+            document.getElementById('prevMonth').addEventListener('click', e => load(+e.currentTarget.dataset.year, +e.currentTarget.dataset.month));
+            document.getElementById('nextMonth').addEventListener('click', e => load(+e.currentTarget.dataset.year, +e.currentTarget.dataset.month));
+            document.getElementById('todayMonth').addEventListener('click', () => load(new Date().getFullYear(), new Date().getMonth() + 1));
+        });
+    </script>
+}

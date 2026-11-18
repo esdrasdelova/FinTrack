@@ -1,0 +1,117 @@
+@model IncomeDashboardViewModel
+@{
+    ViewData["Title"] = "Receitas";
+    var d = Model.Data;
+    var hasData = d.MonthlyIncome.Any(m => m.Income > 0);
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Receitas</h1>
+        <p class="page-subtitle">Acompanhe suas entradas no período <strong>@Model.Period.Label</strong>.</p>
+    </div>
+    <div class="page-actions">
+        @await Html.PartialAsync("_PeriodBar", new PeriodBarViewModel { Period = Model.Period, Options = Model.PeriodOptions, From = Model.From, To = Model.To, Controller = "Income" })
+        <a asp-controller="Transactions" asp-action="Index" asp-route-Type="Income" asp-route-new="1" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova receita</a>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total recebido", Value = FinTrackFormat.Currency(d.TotalReceived), Icon = "bi-cash-coin", Tone = "success", Footer = $"Período: {Model.Period.Label}" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "A receber", Value = FinTrackFormat.Currency(d.Pending), Icon = "bi-hourglass-split", Tone = "warning", Footer = "Lançamentos pendentes" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Receitas recorrentes", Value = FinTrackFormat.Currency(d.RecurringTotal), Icon = "bi-arrow-repeat", Tone = "accent", Footer = "Soma das recorrências ativas" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Fontes de receita", Value = d.Sources.Count.ToString(), Icon = "bi-diagram-3", Tone = "info", Footer = "Categorias com entradas" })
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Evolução das receitas</h3><div class="card-subtitle">Entradas consolidadas por mês</div></div></div>
+        <div class="card-body">
+            @if (hasData)
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartIncomeMonthly"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-bar-chart", Title = "Sem receitas no período", Message = "Cadastre uma entrada para visualizar a evolução." })
+            }
+        </div>
+    </div>
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-pie-chart-fill"></i> Origem das receitas</h3><div class="card-subtitle">Participação por categoria</div></div></div>
+        <div class="card-body">
+            @if (d.Sources.Any())
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartIncomeSources"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-pie-chart", Title = "Sem fontes cadastradas" })
+            }
+        </div>
+    </div>
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-clock-history"></i> Histórico de entradas</h3><div class="card-subtitle">Últimas receitas registradas</div></div><a asp-controller="Transactions" asp-action="Index" asp-route-Type="Income" style="font-size:12px">Ver todas</a></div>
+        <div class="card-body tight">
+            @if (d.History.Any())
+            {
+                <div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>Descrição</th><th>Categoria</th><th>Data</th><th>Status</th><th class="text-end">Valor</th></tr></thead>
+                    <tbody>
+                        @foreach (var t in d.History.Take(10))
+                        {
+                            <tr>
+                                <td><div class="entity-cell"><div class="entity-icon" style="background:@(t.CategoryColor)22;color:@t.CategoryColor"><i class="bi @t.CategoryIcon"></i></div><div class="entity-title">@t.Description</div></div></td>
+                                <td class="text-muted">@t.CategoryName</td>
+                                <td class="text-muted">@FinTrackFormat.Date(t.Date)</td>
+                                <td><span class="badge-soft badge-@FinTrackFormat.StatusTone(t.Status)">@FinTrackFormat.StatusName(t.Status)</span></td>
+                                <td class="text-end amount-in">+ @FinTrackFormat.Currency(t.Amount)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-inbox", Title = "Nenhuma receita encontrada", ActionText = "Cadastrar receita", ActionUrl = "/Transactions/Index?Type=Income" })
+            }
+        </div>
+    </div>
+
+    <div>
+        <div class="card fade-up">
+            <div class="card-header"><div><h3 class="card-title"><i class="bi bi-calendar2-range"></i> Previsão de entradas</h3><div class="card-subtitle">Receitas recorrentes programadas</div></div></div>
+            <div class="card-body">
+                @if (d.Forecast.Any())
+                {
+                    @foreach (var item in d.Forecast)
+                    {
+                        <div class="list-row">
+                            <div class="entity-icon bg-success-soft"><i class="bi @item.Icon"></i></div>
+                            <div class="list-row-main"><div class="list-row-title">@item.Title</div><div class="list-row-sub">@FinTrackFormat.Date(item.Date)</div></div>
+                            <div class="list-row-value text-success">@FinTrackFormat.Currency(item.Amount)</div>
+                        </div>
+                    }
+                    <div class="mt-3 chart-box sm"><div class="chart-skeleton"></div><canvas id="chartIncomeForecast"></canvas></div>
+                }
+                else
+                {
+                    @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-calendar-x", Title = "Sem previsões", Message = "Cadastre receitas recorrentes para ver a previsão." })
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (hasData) { <text>FinTrackCharts.render('chartIncomeMonthly', @Html.Raw(Model.MonthlyChartJson));</text> }
+            @if (d.Sources.Any()) { <text>FinTrackCharts.render('chartIncomeSources', @Html.Raw(Model.SourcesChartJson));</text> }
+            @if (d.Forecast.Any()) { <text>FinTrackCharts.render('chartIncomeForecast', @Html.Raw(Model.ForecastChartJson));</text> }
+        });
+    </script>
+}

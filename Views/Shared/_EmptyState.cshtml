@@ -1,0 +1,13 @@
+@model EmptyStateViewModel
+<div class="empty-state">
+    <div class="empty-icon"><i class="bi @Model.Icon"></i></div>
+    <h6>@Model.Title</h6>
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <p>@Model.Message</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.ActionText) && !string.IsNullOrEmpty(Model.ActionUrl))
+    {
+        <a href="@Model.ActionUrl" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> @Model.ActionText</a>
+    }
+</div>

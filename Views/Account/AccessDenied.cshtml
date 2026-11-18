@@ -1,0 +1,10 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Acesso negado";
+}
+<div class="auth-form text-center fade-up">
+    <div class="empty-icon bg-danger-soft mx-auto mb-4" style="color:var(--danger)"><i class="bi bi-shield-lock"></i></div>
+    <h2>Acesso negado</h2>
+    <p class="text-muted" style="font-size:13px">Você não tem permissão para acessar este recurso.</p>
+    <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary mt-3"><i class="bi bi-house"></i> Voltar ao dashboard</a>
+</div>

@@ -1,0 +1,123 @@
+@model ExpenseDashboardViewModel
+@{
+    ViewData["Title"] = "Despesas";
+    var d = Model.Data;
+    var hasData = d.MonthlyExpenses.Any(m => m.Expenses > 0);
+    var change = d.PreviousTotal <= 0 ? 0 : (d.TotalSpent - d.PreviousTotal) / d.PreviousTotal * 100;
+}
+
+<div class="page-heading fade-up">
+    <div>
+        <h1 class="page-title">Despesas</h1>
+        <p class="page-subtitle">Analise seus gastos no período <strong>@Model.Period.Label</strong>.</p>
+    </div>
+    <div class="page-actions">
+        @await Html.PartialAsync("_PeriodBar", new PeriodBarViewModel { Period = Model.Period, Options = Model.PeriodOptions, From = Model.From, To = Model.To, Controller = "Expenses" })
+        <a asp-controller="Transactions" asp-action="Index" asp-route-Type="Expense" asp-route-new="1" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova despesa</a>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Total gasto", Value = FinTrackFormat.Currency(d.TotalSpent), Icon = "bi-cash-stack", Tone = "danger", TrendText = $"{FinTrackFormat.Percent(Math.Abs(change))} vs. anterior", TrendDirection = change <= 0 ? "up" : "down", Footer = $"Anterior: {FinTrackFormat.Currency(d.PreviousTotal)}" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Gastos fixos", Value = FinTrackFormat.Currency(d.FixedTotal), Icon = "bi-lock", Tone = "accent", Footer = $"{FinTrackFormat.Percent(d.TotalSpent <= 0 ? 0 : d.FixedTotal / d.TotalSpent * 100)} do total" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Gastos variáveis", Value = FinTrackFormat.Currency(d.VariableTotal), Icon = "bi-sliders", Tone = "info", Footer = $"{FinTrackFormat.Percent(d.TotalSpent <= 0 ? 0 : d.VariableTotal / d.TotalSpent * 100)} do total" })
+    @await Html.PartialAsync("_MetricCard", new MetricCardViewModel { Label = "Categorias", Value = d.ByCategory.Count.ToString(), Icon = "bi-grid", Tone = "warning", Footer = "Categorias com gastos" })
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Evolução dos gastos</h3><div class="card-subtitle">Despesas consolidadas por mês</div></div></div>
+        <div class="card-body">
+            @if (hasData)
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartExpenseMonthly"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-bar-chart", Title = "Sem despesas no período" })
+            }
+        </div>
+    </div>
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-pie-chart-fill"></i> Gastos por categoria</h3><div class="card-subtitle">Distribuição dos gastos</div></div></div>
+        <div class="card-body">
+            @if (d.ByCategory.Any())
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartExpenseCategories"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-pie-chart", Title = "Sem categorias com gastos" })
+            }
+        </div>
+    </div>
+</div>
+
+<div class="grid-main-side">
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-trophy"></i> Maiores despesas</h3><div class="card-subtitle">Lançamentos de maior valor no período</div></div></div>
+        <div class="card-body">
+            @if (d.LargestExpenses.Any())
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartLargestExpenses"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-trophy", Title = "Sem despesas registradas" })
+            }
+        </div>
+    </div>
+    <div class="card fade-up">
+        <div class="card-header"><div><h3 class="card-title"><i class="bi bi-pie-chart"></i> Perfil de gasto</h3><div class="card-subtitle">Fixas × variáveis</div></div></div>
+        <div class="card-body">
+            @if (d.TotalSpent > 0)
+            {
+                <div class="chart-box"><div class="chart-skeleton"></div><canvas id="chartFixedVariable"></canvas></div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-pie-chart", Title = "Sem dados" })
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card fade-up">
+    <div class="card-header"><div><h3 class="card-title"><i class="bi bi-clock-history"></i> Últimas despesas</h3><div class="card-subtitle">Histórico de saídas registradas</div></div><a asp-controller="Transactions" asp-action="Index" asp-route-Type="Expense" style="font-size:12px">Ver todas</a></div>
+    <div class="card-body tight">
+        @if (d.TopExpenses.Any())
+        {
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Data</th><th>Status</th><th class="text-end">Valor</th></tr></thead>
+                <tbody>
+                    @foreach (var t in d.TopExpenses)
+                    {
+                        <tr>
+                            <td><div class="entity-cell"><div class="entity-icon" style="background:@(t.CategoryColor)22;color:@t.CategoryColor"><i class="bi @t.CategoryIcon"></i></div><div class="entity-title">@t.Description</div></div></td>
+                            <td class="text-muted">@t.CategoryName</td>
+                            <td class="text-muted">@t.AccountName</td>
+                            <td class="text-muted">@FinTrackFormat.Date(t.Date)</td>
+                            <td><span class="badge-soft badge-@FinTrackFormat.StatusTone(t.Status)">@FinTrackFormat.StatusName(t.Status)</span></td>
+                            <td class="text-end amount-out">− @FinTrackFormat.Currency(t.Amount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            @await Html.PartialAsync("_EmptyState", new EmptyStateViewModel { Icon = "bi-receipt", Title = "Nenhuma despesa encontrada", ActionText = "Cadastrar despesa", ActionUrl = "/Transactions/Index?Type=Expense" })
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (hasData) { <text>FinTrackCharts.render('chartExpenseMonthly', @Html.Raw(Model.MonthlyChartJson));</text> }
+            @if (d.ByCategory.Any()) { <text>FinTrackCharts.render('chartExpenseCategories', @Html.Raw(Model.CategoryChartJson));</text> }
+            @if (d.LargestExpenses.Any()) { <text>FinTrackCharts.render('chartLargestExpenses', @Html.Raw(Model.LargestChartJson));</text> }
+            @if (d.TotalSpent > 0) { <text>FinTrackCharts.render('chartFixedVariable', @Html.Raw(Model.FixedVariableChartJson));</text> }
+        });
+    </script>
+}

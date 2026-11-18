@@ -1,0 +1,82 @@
+@model CardFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+    var colors = new[] { "#8b5cf6", "#6366f1", "#f43f5e", "#06b6d4", "#10b981", "#f59e0b", "#ec4899", "#0f172a" };
+}
+<div class="modal-header">
+    <h5 class="modal-title"><i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle")"></i> @(isEdit ? "Editar cartão" : "Novo cartão")</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+</div>
+<div class="modal-body">
+    <div id="formErrors"></div>
+    <form id="crudForm" asp-action="Save" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div class="row g-3">
+            <div class="col-sm-8">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" placeholder="Ex.: Nubank Platinum" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="Brand" class="form-label">Bandeira</label>
+                <input asp-for="Brand" class="form-control" placeholder="Mastercard" />
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Institution" class="form-label">Instituição</label>
+                <input asp-for="Institution" class="form-control" placeholder="Ex.: Nubank" />
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="LastFourDigits" class="form-label">Últimos 4 dígitos</label>
+                <input asp-for="LastFourDigits" class="form-control" inputmode="numeric" maxlength="4" placeholder="4821" />
+                <span asp-validation-for="LastFourDigits" class="text-danger"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="CreditLimit" class="form-label">Limite de crédito (R$)</label>
+                <input asp-for="CreditLimit" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="CreditLimit" class="text-danger"></span>
+            </div>
+            <div class="col-sm-3">
+                <label asp-for="ClosingDay" class="form-label">Dia fechamento</label>
+                <input asp-for="ClosingDay" class="form-control" type="number" min="1" max="28" />
+                <span asp-validation-for="ClosingDay" class="text-danger"></span>
+            </div>
+            <div class="col-sm-3">
+                <label asp-for="DueDay" class="form-label">Dia vencimento</label>
+                <input asp-for="DueDay" class="form-control" type="number" min="1" max="28" />
+                <span asp-validation-for="DueDay" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Cor do cartão</label>
+                <div class="d-flex gap-2 flex-wrap">
+                    @foreach (var color in colors)
+                    {
+                        <label class="color-choice" style="background:@color;@(Model.Color == color ? "outline:2px solid #fff;outline-offset:2px;" : "")">
+                            <input type="radio" name="Color" value="@color" @(Model.Color == color ? "checked" : "") />
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                    <label asp-for="IsActive" class="form-check-label">Cartão ativo</label>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" form="crudForm" class="btn btn-primary"><i class="bi bi-check-lg"></i> @(isEdit ? "Salvar alterações" : "Cadastrar cartão")</button>
+</div>
+<style>
+    .color-choice { width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-block; }
+    .color-choice input { display:none; }
+</style>
+<script>
+    document.querySelectorAll('.color-choice input').forEach(input => input.addEventListener('change', () => {
+        document.querySelectorAll('.color-choice').forEach(el => el.style.outline = 'none');
+        input.closest('.color-choice').style.outline = '2px solid #fff';
+    }));
+</script>
